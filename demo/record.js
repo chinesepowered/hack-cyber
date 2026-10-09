@@ -74,7 +74,8 @@ const ACTIONS = {
   evidence: { focus: "detection", section: "evidence" },
   agent: { focus: "detection", section: "agent" },
   clickhouse: { focus: "clickhouse", cycleQueries: true },
-  close: { focus: null },
+  guardian: { focus: null, navigate: "/guardian" },
+  close: { focus: null, navigate: "/" },
 };
 
 (async () => {
@@ -122,6 +123,15 @@ const ACTIONS = {
       // the fixture out of the 60-row feed (which broke an earlier take).
       await page.evaluate(() => {
         window.location.hash = "pin=expres@4.18.2";
+      });
+      await page.waitForTimeout(400);
+    }
+
+    if (action.navigate) {
+      // nosemgrep: playwright-goto-injection -- constant path appended to the validated local URL
+      await page.goto(URL.replace(/[/]$/, "") + action.navigate, {
+        waitUntil: "domcontentloaded",
+        timeout: 30000,
       });
       await page.waitForTimeout(400);
     }

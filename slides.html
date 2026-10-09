@@ -6,10 +6,10 @@
 <title>Beagle Brigade</title>
 <style>
   :root{
-    --ink:#14100d; --panel:#1d1712; --panel2:#251d17; --line:#332820;
-    --cream:#fff8ee; --muted:#a89684; --tan:#d9893b; --teal:#14b8a6;
-    --gold:#ffc53d; --alert:#e5484d;
-    --mono: ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+    --ink:#f6f2ec; --panel:#ffffff; --panel2:#faf7f3; --line:#e7dfd4;
+    --cream:#1b1713; --muted:#574b41; --tan:#b8611a; --teal:#0d7268;
+    --gold:#a85a06; --alert:#d42525;
+    --mono: "JetBrains Mono",ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
@@ -28,8 +28,8 @@
   .slide::before{
     content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
     background:
-      radial-gradient(900px 400px at 10% -10%, rgba(217,137,59,.16), transparent 70%),
-      radial-gradient(700px 340px at 92% -8%, rgba(20,184,166,.10), transparent 70%);
+      radial-gradient(900px 400px at 10% -10%, rgba(184,97,26,.10), transparent 70%),
+      radial-gradient(700px 340px at 92% -8%, rgba(13,114,104,.07), transparent 70%);
   }
   .slide > *{position:relative; z-index:1}
 
@@ -57,7 +57,7 @@
   /* pipeline */
   .pipe{display:flex; align-items:stretch; gap:10px; flex-wrap:wrap; margin-top:clamp(16px,2.6vh,28px)}
   .step{
-    flex:1 1 0; min-width:140px; background:var(--panel); border:1px solid var(--line);
+    flex:1 1 0; min-width:140px; background:var(--panel); border:1px solid var(--line); box-shadow:0 4px 16px -8px rgba(60,40,20,.12);
     border-radius:12px; padding:clamp(10px,1.7vh,18px);
   }
   .step b{display:block; font:600 clamp(11px,1.4vh,14px)/1.25 var(--mono); color:var(--tan); margin-bottom:6px}
@@ -96,7 +96,7 @@
     position:fixed; right:18px; bottom:14px; display:flex; gap:7px; align-items:center;
     font:500 11px var(--mono); color:var(--muted); z-index:5;
   }
-  .dot{width:7px;height:7px;border-radius:50%;background:var(--line)}
+  .dot{width:7px;height:7px;border-radius:50%;background:#d6cabb}
   .dot.on{background:var(--tan)}
   @media (prefers-reduced-motion: reduce){ .slide{transition:none} }
 </style>
@@ -203,6 +203,7 @@
       <div class="stat"><div class="v teal">100&nbsp;→&nbsp;16</div><div class="l">breakaway</div></div>
       <div class="stat"><div class="v teal">45&nbsp;→&nbsp;8</div><div class="l">cloudflare-sandbox plugin</div></div>
       <div class="stat"><div class="v alert">100&nbsp;→&nbsp;100</div><div class="l">malware fixtures</div></div>
+      <div class="stat"><div class="v teal">184&nbsp;/&nbsp;0</div><div class="l">real releases live / barks</div></div>
     </div>
   </section>
 
@@ -225,24 +226,24 @@
       </tr>
       <tr>
         <td class="mono tan">Guild.ai</td>
-        <td>Hosts the triage agent: verdict, evidence, actions, confidence, written back onto the detection.</td>
+        <td>Hosts the triage agent: verdict, evidence, actions and confidence, written back onto the detection. Shown our false positives, it answers <span class="mono teal">LIKELY BENIGN</span>.</td>
         <td class="num teal">verdict in<br>one minute</td>
       </tr>
     </table>
 
     <div class="thesis">
-      The agent earns its place by <strong>declining to cry wolf</strong>.
-      Handed our own false positives it returns
-      <span class="mono teal">LIKELY BENIGN</span> with the reason, and it is
-      forbidden from naming a maintainer: a stolen publishing token is far more
-      common than a malicious author, and the account owner is usually the
-      first victim.
+      <strong>Guardian on the AI that wrote this repo:</strong> the agent pasted
+      invisible Trojan Source characters into the regex of our own Trojan
+      Source detector, then did it <strong>twice more</strong> while writing up
+      the fix. Its file edits pass through JSON, which decodes the
+      <em>safe</em> escape back into the invisible character, so no editor,
+      diff or reviewer could see it. Only a tool that reads bytes did.
     </div>
 
     <div class="foot">
       <img src="brand/beagle-alert.png" alt="Scout barking">
       <div>
-        <strong style="color:var(--cream)">Beagle Brigade</strong> — good boy, Scout.
+        <strong style="color:var(--cream)">Beagle Brigade</strong>. Good boy, Scout.
         <div style="margin-top:4px">Nothing downloaded is ever executed. Fixtures are inert and never published.</div>
       </div>
     </div>
@@ -272,7 +273,9 @@
     if (e.key === 'End') show(slides.length - 1);
   });
   addEventListener('click', e => { if (!e.target.closest('nav')) show(i + 1); });
-  show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+  const fromHash = () => show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+  addEventListener('hashchange', fromHash);
+  fromHash();
 </script>
 </body>
 </html>

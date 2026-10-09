@@ -24,6 +24,23 @@ uploads, it is not pointed at anyone, and it never runs what it downloads.
 
 ---
 
+## By the numbers
+
+| | |
+|---|---|
+| Real npm and PyPI releases scanned live during the hackathon | **184** |
+| Real releases Scout barked at (scored malicious) | **0** |
+| Real releases flagged for a human look | **1** (an oversized archive) |
+| Inert malware fixtures caught | **4 of 4**, each scoring 100 |
+| Honest native-build control | scores **13**, stays clean |
+| Real npm registry events in ClickHouse | **9.5M**, aggregated in under a second |
+| Semgrep findings in the AI-written repo | **12 → 0** |
+
+Precision is the point. A scanner that barks at real packages gets switched
+off on day one.
+
+---
+
 ## Sponsors at a glance
 
 | Sponsor | How we used it | The headline |
@@ -167,6 +184,8 @@ the whole repo with Semgrep's registry rulesets. Twelve findings, every one in
 AI-written code. The full write-up is in
 [`docs/semgrep-guardian-finding.md`](docs/semgrep-guardian-finding.md).
 
+![Semgrep finding: Trojan Source characters in our Trojan Source detector](docs/guardian.png)
+
 **The finding: Trojan Source characters inside our Trojan Source detector.**
 To catch the CVE-2021-42574 attack (bidirectional control characters that
 make code read differently to a human than to the parser), the agent wrote a
@@ -221,7 +240,7 @@ the dashboard renders.
 
 Real output, on our typosquat fixture:
 
-> **VERDICT** `MALICIOUS` — a typosquat of the popular `express` library that
+> **VERDICT** `MALICIOUS`: a typosquat of the popular `express` library that
 > steals SSH private keys during installation.
 >
 > **WHY** `bb-meta-install-hook` in `package.json` triggers a postinstall
@@ -231,7 +250,7 @@ Real output, on our typosquat fixture:
 > **ACTIONS** Remove the dependency · search internal lockfiles · rotate SSH
 > private keys on any machine that installed it · report to the registry.
 >
-> **CONFIDENCE** `HIGH` — the code explicitly and unconditionally exfiltrates
+> **CONFIDENCE** `HIGH`: the code explicitly and unconditionally exfiltrates
 > a private key at install time.
 
 Just as important, it **declines to cry wolf**. Handed our own
