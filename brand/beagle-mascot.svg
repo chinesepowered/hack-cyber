@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
+  <title id="title">Scout the beagle</title>
+  <desc id="desc">A cute tricolor beagle mascot sitting with a teal collar and a gold shield tag.</desc>
+  <defs>
+    <path id="body" d="M184 318 C170 360 165 420 172 462 Q178 486 210 486 L302 486 Q334 486 340 462 C347 420 342 360 328 318 Z"/>
+    <path id="head" d="M256 78 C330 78 372 120 376 180 C380 240 352 300 300 312 Q256 322 212 312 C160 300 132 240 136 180 C140 120 182 78 256 78 Z"/>
+    <clipPath id="bodyClip"><use href="#body"/></clipPath>
+    <clipPath id="headClip"><use href="#head"/></clipPath>
+  </defs>
+
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <!-- ground shadow -->
+    <ellipse cx="256" cy="492" rx="150" ry="11" fill="#000" opacity="0.08"/>
+
+    <!-- tail with the white "flag" tip -->
+    <path d="M336 440 Q402 432 406 336" fill="none" stroke="#3B2416" stroke-width="36"/>
+    <path d="M336 440 Q402 432 406 336" fill="none" stroke="#D9893B" stroke-width="24"/>
+    <path d="M402.6 367.7 Q405.3 353.3 406 336" fill="none" stroke="#FFF8EE" stroke-width="24" stroke-linecap="butt"/>
+    <circle cx="406" cy="336" r="12" fill="#FFF8EE"/>
+    <path d="M428 318 Q438 332 431 348" fill="none" stroke="#3B2416" stroke-width="4" opacity="0.55"/>
+    <path d="M443 305 Q457 328 446 353" fill="none" stroke="#3B2416" stroke-width="4" opacity="0.35"/>
+
+    <!-- hind legs -->
+    <ellipse cx="166" cy="450" rx="34" ry="30" fill="#D9893B" stroke="#3B2416" stroke-width="6"/>
+    <ellipse cx="346" cy="450" rx="34" ry="30" fill="#D9893B" stroke="#3B2416" stroke-width="6"/>
+    <ellipse cx="150" cy="477" rx="24" ry="12" fill="#FFF8EE" stroke="#3B2416" stroke-width="6"/>
+    <ellipse cx="362" cy="477" rx="24" ry="12" fill="#FFF8EE" stroke="#3B2416" stroke-width="6"/>
+
+    <!-- body: tan base, black saddle, white bib -->
+    <use href="#body" fill="#D9893B"/>
+    <g clip-path="url(#bodyClip)">
+      <path d="M150 300 L362 300 L362 398 Q304 372 256 376 Q208 372 150 398 Z" fill="#3A2C26"/>
+      <path d="M220 320 C214 370 206 420 214 488 L298 488 C306 420 298 370 292 320 Z" fill="#FFF8EE"/>
+    </g>
+    <use href="#body" fill="none" stroke="#3B2416" stroke-width="6"/>
+
+    <!-- front legs and paws -->
+    <path d="M256 440 L256 466" fill="none" stroke="#3B2416" stroke-width="4" opacity="0.35"/>
+    <ellipse cx="231" cy="478" rx="25" ry="14" fill="#FFF8EE" stroke="#3B2416" stroke-width="6"/>
+    <ellipse cx="281" cy="478" rx="25" ry="14" fill="#FFF8EE" stroke="#3B2416" stroke-width="6"/>
+    <path d="M224 473 L224 483 M238 473 L238 483 M274 473 L274 483 M288 473 L288 483" fill="none" stroke="#3B2416" stroke-width="3.5"/>
+
+    <!-- collar and shield tag -->
+    <path d="M184 322 Q256 352 328 322" fill="none" stroke="#3B2416" stroke-width="26"/>
+    <path d="M184 322 Q256 352 328 322" fill="none" stroke="#14B8A6" stroke-width="16"/>
+    <circle cx="256" cy="342" r="5" fill="#FFC53D" stroke="#3B2416" stroke-width="3.5"/>
+    <path d="M256 346 L277 352 L275 370 Q271 385 256 393 Q241 385 237 370 L235 352 Z" fill="#FFC53D" stroke="#3B2416" stroke-width="5"/>
+    <ellipse cx="256" cy="375" rx="7" ry="5.5" fill="#3B2416"/>
+    <circle cx="247.5" cy="365" r="3" fill="#3B2416"/>
+    <circle cx="256" cy="361.5" r="3" fill="#3B2416"/>
+    <circle cx="264.5" cy="365" r="3" fill="#3B2416"/>
+
+    <!-- head: tan base, white blaze and muzzle -->
+    <use href="#head" fill="#D9893B"/>
+    <g clip-path="url(#headClip)">
+      <path d="M249 90 Q256 86 263 90 L270 175 Q276 205 292 224 L220 224 Q236 205 242 175 Z" fill="#FFF8EE"/>
+      <ellipse cx="256" cy="264" rx="64" ry="48" fill="#FFF8EE"/>
+      <ellipse cx="306" cy="108" rx="30" ry="11" fill="#FFFFFF" opacity="0.22" transform="rotate(24 306 108)"/>
+    </g>
+    <use href="#head" fill="none" stroke="#3B2416" stroke-width="6"/>
+
+    <!-- floppy ears -->
+    <path d="M162 118 C120 128 100 190 104 250 C106 300 130 332 158 322 C182 314 184 270 180 230 C177 190 182 150 162 118 Z" fill="#A85A22" stroke="#3B2416" stroke-width="6"/>
+    <path d="M350 118 C392 128 412 190 408 250 C406 300 382 332 354 322 C330 314 328 270 332 230 C335 190 330 150 350 118 Z" fill="#A85A22" stroke="#3B2416" stroke-width="6"/>
+    <path d="M146 150 C127 182 121 232 127 282" fill="none" stroke="#C47634" stroke-width="8" opacity="0.7"/>
+    <path d="M366 150 C385 182 391 232 385 282" fill="none" stroke="#C47634" stroke-width="8" opacity="0.7"/>
+
+    <!-- brows -->
+    <ellipse cx="200" cy="166" rx="15" ry="8" fill="#B8692B" transform="rotate(-12 200 166)"/>
+    <ellipse cx="312" cy="166" rx="15" ry="8" fill="#B8692B" transform="rotate(12 312 166)"/>
+
+    <!-- eyes -->
+    <ellipse cx="206" cy="206" rx="21" ry="26" fill="#2A1B14"/>
+    <ellipse cx="306" cy="206" rx="21" ry="26" fill="#2A1B14"/>
+    <circle cx="213" cy="195" r="8" fill="#FFFFFF"/>
+    <circle cx="199" cy="217" r="4" fill="#FFFFFF"/>
+    <circle cx="313" cy="195" r="8" fill="#FFFFFF"/>
+    <circle cx="299" cy="217" r="4" fill="#FFFFFF"/>
+
+    <!-- blush -->
+    <ellipse cx="190" cy="250" rx="15" ry="8" fill="#FF8FA3" opacity="0.65"/>
+    <ellipse cx="322" cy="250" rx="15" ry="8" fill="#FF8FA3" opacity="0.65"/>
+
+    <!-- nose, mouth, tongue -->
+    <path d="M232 233 Q256 222 280 233 Q285 242 270 253 Q256 262 242 253 Q227 242 232 233 Z" fill="#2A1B14"/>
+    <ellipse cx="249" cy="234" rx="7" ry="3.5" fill="#FFFFFF" opacity="0.85"/>
+    <path d="M247 276 Q256 272 265 276 C266 293 246 293 247 276 Z" fill="#FF7A8A" stroke="#2A1B14" stroke-width="3.5"/>
+    <path d="M256 279 L256 286" fill="none" stroke="#E0566C" stroke-width="2.5"/>
+    <path d="M256 258 L256 270 M256 270 Q245 283 233 273 M256 270 Q267 283 279 273" fill="none" stroke="#2A1B14" stroke-width="4.5"/>
+
+    <!-- sparkles -->
+    <path d="M100 120 Q103 133 116 136 Q103 139 100 152 Q97 139 84 136 Q97 133 100 120 Z" fill="#FFC53D"/>
+    <path d="M418 92 Q420 101 429 103 Q420 105 418 114 Q416 105 407 103 Q416 101 418 92 Z" fill="#FFC53D"/>
+  </g>
+</svg>
