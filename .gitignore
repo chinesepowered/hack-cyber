@@ -30,3 +30,6 @@ demo/video/
 # misc
 .DS_Store
 *.log
+
+# semgrep per-scan settings files
+.semgrep-*.yml

@@ -117,9 +117,13 @@ def run_semgrep(root: Path) -> list[Finding]:
     env = dict(os.environ)
     # Keep Semgrep's state inside the sandbox: avoids the home-directory
     # settings file being locked by a parallel run.
-    # Unique per scan. A shared settings path makes concurrent Semgrep
-    # processes race on the same file and fail with PermissionError.
-    env["SEMGREP_SETTINGS_FILE"] = str(root.parent / f".semgrep-{root.name}.yml")
+    # Unique per scan, and always inside the sandbox directory. A shared
+    # settings path makes concurrent Semgrep processes race on the same file
+    # and fail with PermissionError; deriving it from `root` instead would
+    # scatter dotfiles next to whatever is being scanned, including the
+    # in-repo fixtures.
+    settings.sandbox_dir.mkdir(parents=True, exist_ok=True)
+    env["SEMGREP_SETTINGS_FILE"] = str(settings.sandbox_dir / f".semgrep-{root.name}.yml")
     cmd = [
         SEMGREP,
         "--config",
