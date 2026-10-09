@@ -34,6 +34,7 @@ INSTALL = {
     "bb-py-setup-hook-execution",
     "bb-py-setup-custom-command-class",
 }
+CREDENTIAL_FILE = {"bb-js-credential-file-exfiltration", "bb-py-credential-file-exfiltration"}
 OBFUSCATION = {"bb-heur-invisible-unicode", "bb-heur-encoded-blob"}
 RECON = {"bb-js-recon-sensitive-paths"}
 
@@ -87,6 +88,19 @@ def assess(findings: list[Finding], signals: list[Signal]) -> Verdict:
 
     score = max(0, min(100, score))
 
+    # Conviction needs dataflow, not vibes. Heuristics (encoded blobs, bidi
+    # characters, minified files) and browser-side loaders can raise a
+    # package to "suspicious", but "malicious" requires either install-time
+    # execution combined with exfiltration or a loader, or a credential file
+    # demonstrably flowing to the network. Without this cap, two real
+    # packages scored malicious purely on a vendored monaco-editor bundle and
+    # right-to-left text in a UI build.
+    convicting = bool(install_time and (rules & EXFIL or rules & LOADER)) or bool(
+        rules & CREDENTIAL_FILE
+    )
+    if not convicting:
+        score = min(score, MALICIOUS_AT - 1)
+
     if score >= MALICIOUS_AT:
         verdict, severity = "malicious", "critical"
     elif score >= SUSPICIOUS_AT:
@@ -101,6 +115,11 @@ def assess(findings: list[Finding], signals: list[Signal]) -> Verdict:
             reasons.append("code is fetched or decoded and then executed")
         elif signals:
             reasons.append(signals[0].detail)
+        elif per_rule:
+            # Never leave the operator with a bare "Suspicious package".
+            # Name whatever actually carried the score.
+            top = max(per_rule, key=lambda rule: per_rule[rule])
+            reasons.append(f"{top} fired")
 
     headline = {
         "malicious": "Malicious package",

@@ -27,7 +27,7 @@ from .backfill import backfill_npm
 from .config import REPO_ROOT, settings
 from .feeds import Release
 from .pipeline import Pipeline, Result
-from .store import ClickHouse
+from .store import ClickHouse, identifier
 
 console = Console()
 
@@ -259,10 +259,13 @@ async def cmd_triage(args: argparse.Namespace) -> int:
             """
             SELECT * FROM detections
             WHERE agentVerdict = '' AND verdict != 'clean'
-            ORDER BY detectedAt DESC
+              AND ({pkg:String} = '' OR package = {pkg:String})
+            -- Worst first. An analyst works the top of the queue, not the
+            -- most recent thing to land.
+            ORDER BY score DESC, detectedAt DESC
             LIMIT {limit:UInt32}
             """,
-            {"limit": args.limit},
+            {"limit": args.limit, "pkg": args.package or ""},
         )
         if not pending:
             console.print("[dim]nothing waiting for triage[/dim]")
@@ -288,9 +291,15 @@ async def cmd_triage(args: argparse.Namespace) -> int:
                     console.print(f"  [red]{package}@{version}: {exc}[/red]")
                     continue
 
-                verdict_text = triage.summary
-                if triage.why:
-                    verdict_text = f"{verdict_text} {' '.join(triage.why)}"
+                # Structured, so the dashboard can render verdict, reasoning and
+                # confidence as separate elements instead of one wall of text.
+                verdict_text = json.dumps(
+                    {
+                        "verdict": triage.verdict,
+                        "confidence": triage.confidence,
+                        "why": triage.why,
+                    }
+                )
 
                 await store.execute(
                     """
@@ -322,7 +331,8 @@ async def cmd_reset(args: argparse.Namespace) -> int:
         tables.append("registry_history")
     async with ClickHouse() as store:
         for table in tables:
-            await store.execute(f"TRUNCATE TABLE IF EXISTS {table}")
+            # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query -- fixed table list, checked by identifier()
+            await store.execute(f"TRUNCATE TABLE IF EXISTS {identifier(table)}")
             console.print(f"  [dim]truncated {table}[/dim]")
     console.print("[green]demo data reset[/green]")
     return 0
@@ -380,6 +390,7 @@ def main(argv: list[str] | None = None) -> int:
 
     triage = sub.add_parser("triage")
     triage.add_argument("--limit", type=int, default=5)
+    triage.add_argument("--package", help="triage only this package")
     triage.set_defaults(fn=cmd_triage)
 
     reset = sub.add_parser("reset")

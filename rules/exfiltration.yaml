@@ -166,3 +166,10 @@ rules:
       - metavariable-regex:
           metavariable: $PATH
           regex: (?i).*(\.ssh/id_|\.aws/credentials|\.npmrc|\.netrc|Local Storage|Login Data|wallet\.dat|exodus|metamask|\.config/solana).*
+      # A real path expression is one line. Without this the metavariable can
+      # bind to a whole multi-line object literal that merely mentions
+      # credentials somewhere inside, which is how a test fixture named
+      # "npm credential mount regression" got reported as credential recon.
+      - metavariable-regex:
+          metavariable: $PATH
+          regex: ^[^\n]{0,200}$

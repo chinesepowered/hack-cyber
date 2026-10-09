@@ -1,42 +1,57 @@
 @import "tailwindcss";
 
-/* Palette derived from Scout's own colours in brand/README.md, so the
-   dashboard and the mascot read as one thing. */
+/* Light, warm, high-contrast. Hackathon demos run on projectors, which wash
+   out dark dashboards; a warm paper background also lets Scout's own colours
+   carry the brand. Every text colour here clears WCAG AA on white. */
 @theme {
-  --color-ink: #14100d;
-  --color-panel: #1d1712;
-  --color-panel-2: #251d17;
-  --color-line: #332820;
-  --color-cream: #fff8ee;
-  --color-muted: #a89684;
-  --color-tan: #d9893b;
-  --color-ears: #a85a22;
-  --color-teal: #14b8a6;
-  --color-gold: #ffc53d;
-  --color-alert: #e5484d;
-  --color-mint: #d7f4ee;
+  --color-bg: #f6f2ec;
+  --color-card: #ffffff;
+  --color-sunken: #faf7f3;
+  --color-line: #e7dfd4;
+  --color-line-strong: #d6cabb;
 
-  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono",
-    Menlo, Consolas, monospace;
+  --color-ink: #1b1713;
+  --color-ink-2: #574b41;
+  --color-ink-3: #7f7266;
+
+  --color-brand: #b8611a;
+  --color-brand-soft: #fcefe1;
+
+  --color-bad: #d42525;
+  --color-bad-soft: #fdeeee;
+  --color-bad-line: #f5c6c6;
+  --color-warn: #a85a06;
+  --color-warn-soft: #fff6e5;
+  --color-warn-line: #f6dcae;
+  --color-good: #0d7268;
+  --color-good-soft: #e9f8f5;
+  --color-good-line: #bfe8e1;
+
+  --color-code: #1e1a17;
+  --color-code-line: #2d2722;
+  --color-code-text: #f3ece3;
+  --color-code-dim: #a99c8f;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
 }
 
 html,
 body {
-  background: var(--color-ink);
-  color: var(--color-cream);
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
 }
 
-/* Warm ambient glow behind the header, so the page is not a flat slab. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(900px 380px at 12% -8%, rgba(217, 137, 59, 0.16), transparent 70%),
-    radial-gradient(700px 320px at 88% -12%, rgba(20, 184, 166, 0.1), transparent 70%);
-  z-index: 0;
+.card {
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  box-shadow:
+    0 1px 2px rgba(60, 40, 20, 0.04),
+    0 4px 16px -6px rgba(60, 40, 20, 0.08);
 }
 
 @keyframes bb-sniff {
@@ -44,42 +59,34 @@ body::before {
   25% { transform: translateY(-3px) rotate(-1.5deg); }
   75% { transform: translateY(-1px) rotate(1.5deg); }
 }
-
 @keyframes bb-bark {
   0%, 100% { transform: scale(1) rotate(0deg); }
-  15% { transform: scale(1.1) rotate(-4deg); }
-  40% { transform: scale(1.06) rotate(4deg); }
-  65% { transform: scale(1.09) rotate(-3deg); }
+  15% { transform: scale(1.08) rotate(-4deg); }
+  40% { transform: scale(1.05) rotate(4deg); }
+  65% { transform: scale(1.07) rotate(-3deg); }
 }
-
 @keyframes bb-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.85); }
 }
-
 @keyframes bb-row-in {
-  from { opacity: 0; transform: translateY(-6px); }
+  from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes bb-ring {
-  0% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.55); }
-  70% { box-shadow: 0 0 0 18px rgba(229, 72, 77, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(212, 37, 37, 0.35); }
+  70% { box-shadow: 0 0 0 16px rgba(212, 37, 37, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(212, 37, 37, 0); }
 }
 
 .animate-sniff { animation: bb-sniff 3.4s ease-in-out infinite; }
-.animate-bark { animation: bb-bark 0.7s ease-in-out infinite; }
+.animate-bark { animation: bb-bark 0.8s ease-in-out infinite; }
 .animate-pulse-dot { animation: bb-pulse 1.6s ease-in-out infinite; }
-.animate-row-in { animation: bb-row-in 0.35s ease-out both; }
-.animate-ring { animation: bb-ring 1.6s ease-out infinite; }
+.animate-row-in { animation: bb-row-in 0.3s ease-out both; }
+.animate-ring { animation: bb-ring 1.8s ease-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-sniff,
-  .animate-bark,
-  .animate-pulse-dot,
-  .animate-row-in,
-  .animate-ring {
+  .animate-sniff, .animate-bark, .animate-pulse-dot, .animate-row-in, .animate-ring {
     animation: none;
   }
 }
@@ -87,7 +94,8 @@ body::before {
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-line);
+  background: var(--color-line-strong);
   border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
-::-webkit-scrollbar-thumb:hover { background: #46382e; }

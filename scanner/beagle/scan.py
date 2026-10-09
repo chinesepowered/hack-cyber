@@ -31,13 +31,18 @@ SEMGREP = shutil.which("semgrep") or shutil.which("semgrep.exe")
 #
 # Deliberately narrow. An earlier version also matched BOM (U+FEFF) and the
 # zero-width range, which flagged real packages whose crime was handling a BOM
-# correctly (`text.replace(/^﻿/, "")`). These overrides have no honest
+# correctly (`text.replace(/^\ufeff/, "")`). These overrides have no honest
 # use in source.
-INVISIBLE = re.compile(r"[‪-‮⁦-⁩]")
+INVISIBLE = re.compile(r"[\u202a-\u202e\u2066-\u2069]")
 BASE64_RUN = re.compile(r"[A-Za-z0-9+/=]{200,}")
 HEX_RUN = re.compile(r"(?:\\x[0-9a-fA-F]{2}){40,}")
 
 CODE_SUFFIXES = {".js", ".cjs", ".mjs", ".ts", ".jsx", ".tsx", ".py"}
+VENDORED = re.compile(
+    r"(^|/)(vendor|vendors|third_party|dist|build|static|public|node_modules)(/|$)"
+    r"|\.min\.|\.bundle\.|\.chunk\.",
+    re.IGNORECASE,
+)
 INSTALL_HOOK_KEYS = ("preinstall", "install", "postinstall", "prepare")
 
 
@@ -232,13 +237,18 @@ def run_heuristics(root: Path, ecosystem: str) -> list[Finding]:
     for path in root.rglob("*"):
         if not path.is_file() or path.suffix.lower() not in CODE_SUFFIXES:
             continue
+        rel = _rel(path, root)
+        # Text heuristics are meaningless on vendored and bundled output:
+        # monaco-editor alone is full of long encoded tables, and any UI
+        # bundle with right-to-left locale support carries bidi characters.
+        if VENDORED.search(rel):
+            continue
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
         if len(text) > settings.max_file_bytes:
             continue
-        rel = _rel(path, root)
 
         match = INVISIBLE.search(text)
         if match:

@@ -7,6 +7,7 @@ ClickHouse's own {name:Type} binding, and JSONEachRow for inserts.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -14,12 +15,31 @@ import httpx
 
 from .config import settings
 
+IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
+
+
+def identifier(name: str) -> str:
+    """Table names cannot be bound as query parameters, so they are checked
+    against a strict identifier pattern before being formatted into SQL."""
+    if not IDENTIFIER.match(name):
+        raise ValueError(f"refusing unsafe SQL identifier: {name!r}")
+    return name
+
 
 class ClickHouse:
     def __init__(self, url: str | None = None, database: str | None = None) -> None:
         self.url = (url or settings.clickhouse_url).rstrip("/")
         self.database = database or settings.clickhouse_database
-        self._client = httpx.AsyncClient(timeout=httpx.Timeout(120.0))
+        # Credentials travel in headers, never in the query string. A query
+        # string ends up in proxy logs, server access logs and error messages;
+        # the first version of this client put the password there.
+        self._client = httpx.AsyncClient(
+            timeout=httpx.Timeout(120.0),
+            headers={
+                "X-ClickHouse-User": settings.clickhouse_user,
+                "X-ClickHouse-Key": settings.clickhouse_password,
+            },
+        )
 
     async def aclose(self) -> None:
         await self._client.aclose()
@@ -52,10 +72,7 @@ class ClickHouse:
         return json.dumps(value)
 
     def _params(self, extra: dict[str, Any] | None, with_db: bool) -> dict[str, str]:
-        params: dict[str, str] = {
-            "user": settings.clickhouse_user,
-            "password": settings.clickhouse_password,
-        }
+        params: dict[str, str] = {}
         if with_db:
             params["database"] = self.database
         for key, value in (extra or {}).items():
@@ -83,6 +100,7 @@ class ClickHouse:
         return response.text
 
     async def query(self, sql: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        # nosemgrep: sqlalchemy-execute-raw-query -- not SQLAlchemy; values are bound as ClickHouse {name:Type} parameters
         text = await self.execute(sql + "\nFORMAT JSON", params=params)
         if not text.strip():
             return []
@@ -92,7 +110,8 @@ class ClickHouse:
         payload = "\n".join(json.dumps(row, default=str) for row in rows)
         if not payload:
             return 0
-        await self.execute(f"INSERT INTO {table} FORMAT JSONEachRow", body=payload)
+        # nosemgrep: sqlalchemy-execute-raw-query -- table name checked by identifier(); rows go in the body as JSON
+        await self.execute(f"INSERT INTO {identifier(table)} FORMAT JSONEachRow", body=payload)
         return payload.count("\n") + 1
 
     async def apply_schema(self, schema_path: Path) -> list[str]:

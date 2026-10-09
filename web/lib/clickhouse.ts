@@ -26,8 +26,6 @@ export async function query<T = Record<string, unknown>>(
   params: Record<string, string | number> = {},
 ): Promise<QueryResult<T>> {
   const search = new URLSearchParams({
-    user: USER,
-    password: PASSWORD,
     database: DATABASE,
     default_format: "JSON",
     // Hard safety rail: the query panel is user-facing.
@@ -40,6 +38,9 @@ export async function query<T = Record<string, unknown>>(
 
   const response = await fetch(`${URL_BASE}/?${search.toString()}`, {
     method: "POST",
+    // Credentials in headers, never the query string: URLs end up in proxy
+    // logs, access logs and error messages. The first version leaked them.
+    headers: { "X-ClickHouse-User": USER, "X-ClickHouse-Key": PASSWORD },
     body: `${sql}\nFORMAT JSON`,
     cache: "no-store",
   });

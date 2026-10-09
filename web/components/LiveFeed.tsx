@@ -4,22 +4,22 @@ import type { FeedRow } from "@/app/api/feed/route";
 
 const VERDICT = {
   malicious: {
-    chip: "bg-alert text-white",
-    text: "text-alert",
-    label: "BARK",
-    row: "bg-alert/8 hover:bg-alert/14",
+    dot: "bg-bad",
+    pill: "bg-bad text-white",
+    label: "Malicious",
+    row: "bg-bad-soft/70 hover:bg-bad-soft",
   },
   suspicious: {
-    chip: "bg-gold text-ink",
-    text: "text-gold",
-    label: "sniff",
-    row: "bg-gold/6 hover:bg-gold/12",
+    dot: "bg-warn",
+    pill: "bg-warn-soft text-warn ring-1 ring-warn-line",
+    label: "Suspicious",
+    row: "hover:bg-sunken",
   },
   clean: {
-    chip: "bg-line text-muted",
-    text: "text-muted",
-    label: "ok",
-    row: "hover:bg-panel-2",
+    dot: "bg-good",
+    pill: "bg-good-soft text-good ring-1 ring-good-line",
+    label: "Clean",
+    row: "hover:bg-sunken",
   },
 } as const;
 
@@ -37,67 +37,60 @@ export default function LiveFeed({
   onSelect: (row: FeedRow) => void;
 }) {
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-line bg-panel">
-      <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-          Live sniff feed
-        </h2>
-        <span className="font-mono text-[10px] text-muted">
-          {rows.length} most recent
-        </span>
+    <div className="card flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-good animate-pulse-dot" />
+          <h2 className="text-[15px] font-semibold text-ink">Live feed</h2>
+        </div>
+        <span className="text-[13px] text-ink-3">newest first</span>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {rows.length === 0 ? (
-          <div className="px-4 py-10 text-center text-xs text-muted">
+          <div className="px-5 py-12 text-center text-[14px] text-ink-2">
             Waiting for the first package. Run{" "}
-            <code className="font-mono text-tan">beagle live</code> to start the feed.
+            <code className="rounded bg-sunken px-1.5 py-0.5 font-mono text-[13px] text-brand">
+              beagle live
+            </code>{" "}
+            to start the feed.
           </div>
         ) : (
-          <table className="w-full border-collapse text-[12.5px]">
-            <tbody>
-              {rows.map((row, index) => {
-                const s = style(row.verdict);
-                const id = `${row.package}@${row.version}`;
-                const isSelected = selected === id;
-                return (
-                  <tr
-                    key={`${id}-${row.scannedAt}-${index}`}
-                    onClick={() => onSelect(row)}
-                    className={[
-                      "animate-row-in cursor-pointer border-b border-line/50 transition-colors",
-                      s.row,
-                      isSelected ? "outline outline-1 -outline-offset-1 outline-tan/60" : "",
-                    ].join(" ")}
-                    style={{ animationDelay: `${Math.min(index, 8) * 18}ms` }}
+          <ul>
+            {rows.map((row, index) => {
+              const s = style(row.verdict);
+              const id = `${row.package}@${row.version}`;
+              const isSelected = selected === id;
+              return (
+                <li
+                  key={`${id}-${row.scannedAt}-${index}`}
+                  onClick={() => onSelect(row)}
+                  className={[
+                    "animate-row-in flex cursor-pointer items-center gap-3 border-b border-line/70 px-5 py-2.5 transition-colors",
+                    s.row,
+                    isSelected ? "shadow-[inset_3px_0_0_0_var(--color-brand)] bg-brand-soft/60" : "",
+                  ].join(" ")}
+                  style={{ animationDelay: `${Math.min(index, 8) * 16}ms` }}
+                >
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${s.dot}`} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-mono text-[14px] font-medium text-ink">
+                      {row.package}
+                      <span className="font-normal text-ink-3">@{row.version}</span>
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-md bg-sunken px-1.5 py-0.5 text-[12px] font-medium text-ink-2 ring-1 ring-line">
+                    {row.ecosystem}
+                  </span>
+                  <span
+                    className={`w-[118px] shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-center text-[12px] font-semibold ${s.pill}`}
                   >
-                    <td className="w-[62px] py-2 pl-3 pr-1">
-                      <span
-                        className={`inline-block w-full rounded px-1.5 py-0.5 text-center font-mono text-[9.5px] font-bold uppercase tracking-wide ${s.chip}`}
-                      >
-                        {s.label}
-                      </span>
-                    </td>
-                    <td className="w-[46px] py-2 pr-2 font-mono text-[10px] text-muted">
-                      {row.ecosystem}
-                    </td>
-                    <td className="py-2 pr-2">
-                      <span className="font-mono text-cream">{row.package}</span>
-                      <span className="font-mono text-muted">@{row.version}</span>
-                    </td>
-                    <td className="w-[54px] py-2 pr-2 text-right">
-                      <span className={`font-mono text-[12px] font-semibold tabular-nums ${s.text}`}>
-                        {row.score}
-                      </span>
-                    </td>
-                    <td className="w-[74px] py-2 pr-3 text-right font-mono text-[10px] text-muted tabular-nums">
-                      {row.scanMillis}ms
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    {s.label} · {row.score}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
     </div>

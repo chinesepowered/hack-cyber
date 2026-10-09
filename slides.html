@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beagle Brigade</title>
+<style>
+  :root{
+    --ink:#14100d; --panel:#1d1712; --panel2:#251d17; --line:#332820;
+    --cream:#fff8ee; --muted:#a89684; --tan:#d9893b; --teal:#14b8a6;
+    --gold:#ffc53d; --alert:#e5484d;
+    --mono: ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--ink); color:var(--cream); overflow:hidden;
+    font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .deck{height:100vh;width:100vw;position:relative}
+  .slide{
+    position:absolute; inset:0; display:none;
+    padding:clamp(28px,4.5vh,64px) clamp(32px,5vw,96px);
+    flex-direction:column; opacity:0; transition:opacity .35s ease;
+  }
+  .slide.on{display:flex; opacity:1}
+  .slide::before{
+    content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(900px 400px at 10% -10%, rgba(217,137,59,.16), transparent 70%),
+      radial-gradient(700px 340px at 92% -8%, rgba(20,184,166,.10), transparent 70%);
+  }
+  .slide > *{position:relative; z-index:1}
+
+  .eyebrow{
+    font:600 clamp(10px,1.15vh,13px)/1 var(--mono);
+    letter-spacing:.2em; text-transform:uppercase; color:var(--tan);
+    margin-bottom:clamp(12px,2vh,22px);
+  }
+  h1{font-size:clamp(40px,7.2vh,80px); line-height:1.02; letter-spacing:-.025em; font-weight:700}
+  h2{font-size:clamp(26px,4.4vh,46px); line-height:1.1; letter-spacing:-.02em; font-weight:650}
+  .lede{font-size:clamp(16px,2.3vh,24px); color:var(--muted); max-width:62ch; margin-top:clamp(12px,2vh,20px); line-height:1.45}
+  .lede strong{color:var(--cream); font-weight:600}
+  .mono{font-family:var(--mono)}
+  .teal{color:var(--teal)} .gold{color:var(--gold)} .alert{color:var(--alert)} .tan{color:var(--tan)}
+
+  /* slide 1 */
+  .hero{display:flex; align-items:center; gap:clamp(24px,4vw,64px); flex:1}
+  .hero img{width:clamp(150px,21vh,270px); height:auto; flex-shrink:0}
+  .kicker{
+    margin-top:clamp(18px,3vh,32px); font-size:clamp(17px,2.5vh,27px);
+    font-weight:600; color:var(--cream);
+  }
+  .kicker span{color:var(--alert)}
+
+  /* pipeline */
+  .pipe{display:flex; align-items:stretch; gap:10px; flex-wrap:wrap; margin-top:clamp(16px,2.6vh,28px)}
+  .step{
+    flex:1 1 0; min-width:140px; background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; padding:clamp(10px,1.7vh,18px);
+  }
+  .step b{display:block; font:600 clamp(11px,1.4vh,14px)/1.25 var(--mono); color:var(--tan); margin-bottom:6px}
+  .step span{font-size:clamp(11px,1.5vh,14px); color:var(--muted); line-height:1.4}
+  .arrow{display:flex; align-items:center; color:var(--line); font-size:20px}
+
+  .thesis{
+    margin-top:clamp(16px,2.8vh,30px); background:var(--panel); border:1px solid var(--line);
+    border-left:3px solid var(--tan); border-radius:12px; padding:clamp(14px,2.2vh,22px) clamp(16px,2.4vw,26px);
+    font-size:clamp(14px,2vh,21px); line-height:1.5;
+  }
+
+  /* tables */
+  table{width:100%; border-collapse:collapse; margin-top:clamp(12px,2.2vh,24px)}
+  th{
+    text-align:left; font:600 clamp(9px,1.15vh,12px)/1 var(--mono); letter-spacing:.14em;
+    text-transform:uppercase; color:var(--muted); padding:0 12px 10px; border-bottom:1px solid var(--line);
+  }
+  td{padding:clamp(8px,1.5vh,15px) 12px; border-bottom:1px solid rgba(51,40,32,.6); font-size:clamp(12px,1.75vh,17px); vertical-align:top}
+  td.num{font-family:var(--mono); font-weight:600; text-align:right; white-space:nowrap}
+
+  /* stat row */
+  .stats{display:flex; gap:12px; margin-top:auto; padding-top:clamp(14px,2.4vh,26px); flex-wrap:wrap}
+  .stat{flex:1 1 0; min-width:150px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:clamp(12px,1.9vh,20px)}
+  .stat .v{font:700 clamp(21px,3.6vh,38px)/1 var(--mono)}
+  .stat .l{font:600 clamp(9px,1.1vh,11px)/1.3 var(--mono); letter-spacing:.13em; text-transform:uppercase; color:var(--muted); margin-top:8px}
+
+  .foot{
+    display:flex; align-items:center; gap:14px; margin-top:auto;
+    padding-top:clamp(14px,2.4vh,26px); color:var(--muted); font-size:clamp(11px,1.5vh,14px);
+  }
+  .foot img{width:clamp(38px,5.6vh,60px); height:auto}
+  .pill{border:1px solid var(--line); background:var(--panel2); border-radius:999px; padding:5px 12px; font-family:var(--mono); font-size:clamp(10px,1.3vh,12.5px)}
+
+  nav{
+    position:fixed; right:18px; bottom:14px; display:flex; gap:7px; align-items:center;
+    font:500 11px var(--mono); color:var(--muted); z-index:5;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--line)}
+  .dot.on{background:var(--tan)}
+  @media (prefers-reduced-motion: reduce){ .slide{transition:none} }
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <!-- 1 ─ problem -->
+  <section class="slide on">
+    <div class="eyebrow">Cyberdefense hackathon</div>
+    <div class="hero">
+      <img src="brand/beagle-mascot.png" alt="Scout the beagle">
+      <div>
+        <h1>Beagle&nbsp;Brigade</h1>
+        <p class="lede">
+          At US airports the USDA's Beagle Brigade sniffs luggage for what
+          shouldn't cross the border. <strong>Scout does the same job for
+          package registries.</strong>
+        </p>
+        <p class="kicker">Attackers don't break in. <span>They publish.</span></p>
+        <p class="lede">
+          A stolen maintainer token becomes a new version of a package you
+          already depend on. It runs on every laptop and every CI runner that
+          installs it, before anyone opens a file. This happened thousands of
+          times on npm and PyPI in the past year.
+        </p>
+      </div>
+    </div>
+    <div class="foot">
+      <span class="pill">npm + PyPI</span>
+      <span class="pill">Semgrep</span>
+      <span class="pill">ClickHouse · Tokyo</span>
+      <span class="pill">Guild.ai</span>
+    </div>
+  </section>
+
+  <!-- 2 ─ solution -->
+  <section class="slide">
+    <div class="eyebrow">How it works</div>
+    <h2>Every new release, sniffed within seconds of publication</h2>
+
+    <div class="pipe">
+      <div class="step"><b>1 · tail</b><span>npm <code>_changes</code> by sequence, PyPI updates RSS</span></div>
+      <div class="arrow">→</div>
+      <div class="step"><b>2 · fetch</b><span>Into a sandbox, under a strict budget. <strong>Never executed.</strong></span></div>
+      <div class="arrow">→</div>
+      <div class="step"><b>3 · analyse</b><span>Semgrep taint rules: does a credential reach the network?</span></div>
+      <div class="arrow">→</div>
+      <div class="step"><b>4 · score</b><span>Combinations convict, single rules don't</span></div>
+      <div class="arrow">→</div>
+      <div class="step"><b>5 · act</b><span>ClickHouse detection wakes the Guild agent</span></div>
+    </div>
+
+    <div class="thesis">
+      <strong>Install-time execution is the hinge.</strong> Code in a
+      <span class="mono tan">postinstall</span> hook runs on every machine that
+      installs the package. But thousands of honest packages compile native
+      code that way, so that alone proves nothing. What is almost never
+      innocent is <strong>install-time execution combined with credential
+      access</strong>, or obfuscation combined with a loader.
+    </div>
+
+    <table>
+      <tr><th>Fixture</th><th>What it models</th><th style="text-align:right">Score</th></tr>
+      <tr><td class="mono">npm-benign-native-build</td><td>Honest <span class="mono">node-gyp rebuild</span> in a postinstall hook</td><td class="num teal">13</td></tr>
+      <tr><td class="mono">expres</td><td>Typosquat; postinstall reads <span class="mono">~/.ssh/id_rsa</span> and POSTs it out</td><td class="num alert">100</td></tr>
+      <tr><td class="mono">npm-remote-loader</td><td>preinstall fetches a second stage and evals it</td><td class="num alert">100</td></tr>
+    </table>
+  </section>
+
+  <!-- 3 ─ the hard part -->
+  <section class="slide">
+    <div class="eyebrow">The hard part</div>
+    <h2>Catching malware is easy. Not crying wolf is the work.</h2>
+    <p class="lede">
+      A scanner that flags everything gets switched off on day one. Our first
+      rules flagged <strong>almost every well-behaved API client in the
+      registry</strong>, because reading a token from the environment and
+      sending it in an <span class="mono">Authorization</span> header looks
+      identical to credential theft until you ask where it's going.
+    </p>
+
+    <table>
+      <tr><th>What fired</th><th>Why it was wrong</th><th>Fix</th></tr>
+      <tr>
+        <td>Every API client</td>
+        <td>Presenting your own token to its own service is correct behaviour</td>
+        <td>Split credential <em>files</em> from <em>env vars</em>; env only counts at install time; exclude the auth-header shape</td>
+      </tr>
+      <tr>
+        <td>A package that strips a BOM</td>
+        <td>Invisible-Unicode rule matched <span class="mono">replace(/^\ufeff/,"")</span></td>
+        <td>Narrowed to bidi overrides, which have no honest use in source</td>
+      </tr>
+      <tr>
+        <td>A Bearer-token parser</td>
+        <td><span class="mono">$CP.exec(...)</span> also matches <span class="mono">RegExp.exec</span></td>
+        <td>Constrained the receiver by name</td>
+      </tr>
+    </table>
+
+    <div class="stats">
+      <div class="stat"><div class="v teal">100&nbsp;→&nbsp;0</div><div class="l">swarph-cli</div></div>
+      <div class="stat"><div class="v teal">100&nbsp;→&nbsp;16</div><div class="l">breakaway</div></div>
+      <div class="stat"><div class="v teal">45&nbsp;→&nbsp;8</div><div class="l">cloudflare-sandbox plugin</div></div>
+      <div class="stat"><div class="v alert">100&nbsp;→&nbsp;100</div><div class="l">malware fixtures</div></div>
+    </div>
+  </section>
+
+  <!-- 4 ─ sponsors + close -->
+  <section class="slide">
+    <div class="eyebrow">What we built on</div>
+    <h2>Static analysis, real-time analytics, and an agent that acts</h2>
+
+    <table>
+      <tr><th>Sponsor</th><th>How we used it</th><th style="text-align:right">Headline</th></tr>
+      <tr>
+        <td class="mono tan">ClickHouse</td>
+        <td>The only datastore. Live scan results plus replicated npm registry history; detections drive the response.</td>
+        <td class="num teal">9.5M rows<br>&lt;1s aggregates</td>
+      </tr>
+      <tr>
+        <td class="mono tan">Semgrep</td>
+        <td>The detection engine, plus <strong>Guardian</strong> on the AI that wrote this repo: it caught the agent writing invisible Trojan Source characters into our own Trojan Source detector.</td>
+        <td class="num teal">13/13 tests<br>12 findings &rarr; 0</td>
+      </tr>
+      <tr>
+        <td class="mono tan">Guild.ai</td>
+        <td>Hosts the triage agent: verdict, evidence, actions, confidence, written back onto the detection.</td>
+        <td class="num teal">verdict in<br>one minute</td>
+      </tr>
+    </table>
+
+    <div class="thesis">
+      The agent earns its place by <strong>declining to cry wolf</strong>.
+      Handed our own false positives it returns
+      <span class="mono teal">LIKELY BENIGN</span> with the reason, and it is
+      forbidden from naming a maintainer: a stolen publishing token is far more
+      common than a malicious author, and the account owner is usually the
+      first victim.
+    </div>
+
+    <div class="foot">
+      <img src="brand/beagle-alert.png" alt="Scout barking">
+      <div>
+        <strong style="color:var(--cream)">Beagle Brigade</strong> — good boy, Scout.
+        <div style="margin-top:4px">Nothing downloaded is ever executed. Fixtures are inert and never published.</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<nav>
+  <span class="dot on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+  <span style="margin-left:6px">← →</span>
+</nav>
+
+<script>
+  const slides = [...document.querySelectorAll('.slide')];
+  const dots = [...document.querySelectorAll('.dot')];
+  let i = 0;
+  function show(n){
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('on', k === i));
+    dots.forEach((d, k) => d.classList.toggle('on', k === i));
+    location.hash = i + 1;
+  }
+  addEventListener('keydown', e => {
+    if (['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)) { e.preventDefault(); show(i + 1); }
+    if (['ArrowLeft','ArrowUp','PageUp'].includes(e.key)) { e.preventDefault(); show(i - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+  });
+  addEventListener('click', e => { if (!e.target.closest('nav')) show(i + 1); });
+  show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+</script>
+</body>
+</html>

@@ -74,14 +74,20 @@ def _normalise(name: str) -> str:
 
 
 def typosquat_of(package: str, ecosystem: str) -> tuple[str, int] | None:
+    # Nobody fat-fingers their way into a scope: `@circle-fin/cli` was being
+    # reported as a squat of `chai` because "cli" is two edits from it.
+    if package.startswith("@"):
+        return None
     candidates = TOP_NPM if ecosystem == "npm" else TOP_PYPI
     target = _normalise(package)
     if target in candidates:
         return None
+    # Two edits between short names is coincidence, not intent.
+    max_distance = 1 if len(target) < 6 else 2
     best: tuple[str, int] | None = None
     for candidate in candidates:
         distance = levenshtein(target, candidate)
-        if distance <= 2 and (best is None or distance < best[1]):
+        if distance <= max_distance and (best is None or distance < best[1]):
             best = (candidate, distance)
     return best
 

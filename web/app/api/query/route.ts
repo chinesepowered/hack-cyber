@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * latency on screen is a real full-table aggregate over millions of rows,
  * not a primary-key lookup of ten.
  */
-export const PRESETS: Record<string, { label: string; question: string; sql: string }> = {
+const PRESETS: Record<string, { label: string; question: string; sql: string }> = {
   registry_scale: {
     label: "Registry scale",
     question:

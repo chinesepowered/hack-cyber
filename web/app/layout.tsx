@@ -1,21 +1,20 @@
 import type { Metadata } from "next";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Beagle Brigade",
-  description:
-    "Scout sniffs every new npm and PyPI release for malware, in real time.",
+  description: "Scout sniffs every new npm and PyPI release for malware, in real time.",
   icons: { icon: "/scout-avatar.png" },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className="min-h-screen antialiased">
-        <div className="relative z-10">{children}</div>
-      </body>
+    <html lang="en" className={`${inter.variable} ${mono.variable}`}>
+      <body className="min-h-screen">{children}</body>
     </html>
   );
 }

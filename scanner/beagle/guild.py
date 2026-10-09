@@ -126,7 +126,7 @@ async def run_triage(
     detection: dict[str, Any],
     findings: list[dict[str, Any]],
     *,
-    timeout_s: int = 180,
+    timeout_s: int = 420,
 ) -> Triage:
     auth = _auth()
     prompt = build_prompt(detection, findings)

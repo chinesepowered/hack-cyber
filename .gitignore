@@ -33,3 +33,6 @@ demo/video/
 
 # semgrep per-scan settings files
 .semgrep-*.yml
+
+# typescript incremental build cache
+*.tsbuildinfo
