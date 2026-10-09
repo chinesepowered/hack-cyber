@@ -1,176 +1,179 @@
-# Cyberdefense Hackathon: 20 ideas ranked by expected prize money
+# Cyberdefense Hackathon: v2 plan, after talking to sponsors
 
-## What changes the strategy
+The first list is in [`IDEAS-v1.md`](IDEAS-v1.md). Its verified facts and SQL snippets still apply.
 
-- **Time is short.** Hacking starts at 11:00 and submissions close at 16:30; finalists demo at 17:00. That's about 4 hours of building after setup and lunch.
-- **Cash on the table:**
-  - Pi overall: $2,000 (1,000 / 600 / 400)
-  - Guild: $2,000 (1,000 / 500 / 500), with three winners
-  - ClickHouse: $1,750 cash, plus credits
-  - Semgrep: $1,500 (1,000 / 500), judged on a *finding*, not a project
-  - Akash: credits only
-- **Play:** build ONE project that stacks Guild + ClickHouse (with AkashML for inference), and pitch it in Pi's language: find → understand → fix → prevent. Pi's own pitch is "fix once, stays fixed everywhere." Put one person on the Semgrep finding track in parallel.
-- **Ask at kickoff:** can one team win several sponsor prizes? If not, Guild's three slots are the best odds.
-- **Judges** include Guild (Corbett Waddingham), ClickHouse (Dustin Healy), Semgrep (Daghan Altas), Akash (Greg Osuri) and two from Pi. Sponsor judges may only read your submission, so the README must state rows, latency in ms, and which sponsor features you used.
+## What changed
 
-## Shortcuts I verified
+| Sponsor | What they said | What we do now |
+|---|---|---|
+| ClickHouse ($1k / $500 / $250) | Any solid ClickHouse use counts; RunReveal would be cool, but we can't get access | Plain ClickHouse plus a **mocked, RunReveal-compatible layer** (below) |
+| Pi ($1k / $600 / $400) | No product to integrate; "show us cool security" | Live moments on stage, real attacks and real data |
+| Semgrep ($1k / $500, a separate *finding* prize) | "We're good at static analysis" | Real Semgrep static analysis in the loop (custom rules, taint mode), plus the finding track |
+| Guild ($1k / $500 / $500) | Not contacted yet, so free tier | Free tier is plenty: 50M tokens at signup, plus 50M more if you set up a Software Factory |
+| Akash | Credits aren't worth it | Dropped |
 
-1. **Billion-row security data, already loaded, free.** ClickHouse's public playground (`https://play.clickhouse.com`, user `play`, read-only) holds these tables:
+## The mocked RunReveal layer (reusable in any idea below)
 
-   | Table | Rows | Coverage |
-   |---|---|---|
-   | `github_events` | 3.17B | Jan 2023–Jul 2026 (gap: Jun 2024–Sep 2025) |
-   | `dns` / `dns2` (passive DNS: domain, A, AAAA, CNAME) | 2.19B / 2.45B | 2021–22 |
-   | `rdns` | 1.24B | 2021 |
-   | `tranco` / `cisco_umbrella` (daily top-1M ranks) | 1.8B / 2.57B | to Jan 2024 |
-   | `pypi` (per-file index of 466K projects) | 1.03B | to Sep 2023 |
-   | `mgbench.logs2` (real web-server access log) | 75M | 2012 |
-   | `workflow_jobs` (CI jobs) | 73M | |
+RunReveal joined ClickHouse in September 2026 and its docs are public, so we can copy its shapes exactly:
 
-   Aggregations returned in 0.3–1.3 s, and a full `LIKE` scan of 2.45B rows took about 4 s. It is a shared box with a memory cap, though: wide text scans of `body` fail. Copy the slice you need into your own ClickHouse Cloud service for stable numbers.
-2. **A real attack is in that data.** Starting 2025-11-24, branch-creation events in repos with random 18-character lowercase names climb fast:
-   - Baseline: 2–3 per 10 min.
-   - 03:10 UTC: 21.
-   - About 08:00 UTC: roughly 2,000 per hour.
-   - Over two days: about 14.8K repos across about 778 accounts.
+- **Ingest.** Expose `POST /sources/hook/{id}` and accept RunReveal's structured-webhook JSON: `eventName`, `eventTime`, `readOnly`, `actor{id,email,username}`, `src{ip,port}`, `dst`, `service{name}`, `resources[]`, `tags{}`. Write it to a ClickHouse `logs` table with the same field names plus `rawLog`.
+- **Detections.** Store them in RunReveal's format: a slug name, SQL that filters on `{from:DateTime}` / `{to:DateTime}` (which is ClickHouse's native query-parameter syntax), a cron schedule, a severity, and `mitreAttacks` / `mitreTechniques`. A ~50-line runner executes them and writes to a `signals` table. Detections with a notification target become alerts, which POST to a Guild API trigger.
+- **Tools for agents.** Serve RunReveal's MCP tool names (`run_query`, `list_tables`, `get_table_schema`, `source_list`, `detections_create`, `notification_send`), backed by ClickHouse, on a public URL. A tunnel works; Guild integrations can't reach private addresses.
+- **Pitch line:** "RunReveal-compatible. Point it at a real workspace and it works."
 
-   This matches public reporting on the Sha1-Hulud 2.0 npm worm, which created randomly named repos to hold stolen secrets. One aggregate query surfaces it in about 1 s (appendix).
-3. **Detection can call an agent without glue code.** A ClickStack SQL alert can POST a generic webhook with custom headers and body, so it can call Guild's API trigger directly. The trigger takes `POST https://api.guild.ai/v1/workspaces/{owner}/{workspace}/sessions` with Basic auth and `{"session_type":"api_trigger","agent_input":{...}}`. Alert intervals start at 1 minute. Fallback: a 20-line poller.
-4. **ClickHouse can run an LLM inside SQL, on Akash.** The AI functions are `aiClassify`, `aiFilter`, `aiExtract`, `aiRedact`, `aiGenerate`, `aiEmbed` and `aiSimilarity`. They are beta, added between 26.4 and 26.8.
-   - They accept any OpenAI-compatible endpoint, including AkashML at `https://api.akashml.com/v1`. AkashML lists `openai/gpt-oss-20b` at about $0.03 per 1M input tokens.
-   - They are **not on ClickHouse Cloud yet**, so self-host 26.8+ (Docker, or deploy it on Akash).
-5. **Guild's limits shape the design:**
-   - Agents have no direct internet. They reach services only through integrations: REST or MCP, with credentials injected server-side.
-   - A ClickHouse integration can use either:
-     - Query API Endpoints (saved, parameterized queries run with a read-only DB role).
-     - ClickHouse Cloud remote MCP (`https://mcp.clickhouse.cloud/mcp`).
-   - The URL must be public, because private and loopback addresses are blocked.
-   - Credential policies (allow only GET, deny writes, scope per agent) give you a ready-made security story.
-   - AkashML is **not** a Guild LLM provider. Supported providers are Anthropic, OpenAI, Gemini, Meta, Bedrock, Fireworks and OpenRouter. Call AkashML through a custom integration or from the data layer instead.
-6. **Guardian works with open models.** Guardian's Claude Code plugin scans every file the agent writes, using the fixed `guardian-default` rules plus Supply Chain and Secrets checks. AkashML also serves an Anthropic-compatible endpoint (`https://api.akashml.com/anthropic`), so Claude Code, and Guardian with it, can run against open models (GLM-5.3, Kimi-K3, Qwen, gpt-oss).
-7. **Guild's Software Factory** turns labeled GitHub issues into reviewed PRs, and Guild's Smith agent can set one up from chat.
+## 20 new ideas
 
-## The 20 ideas
-
-Legend: **P** Pi overall, **G** Guild, **C** ClickHouse, **A** Akash, **S** Semgrep. Effort assumes 3–4 people for about 4 hours.
+Legend: **P** Pi · **G** Guild · **C** ClickHouse · **S** Semgrep. Effort assumes 3–4 people in about 4 hours.
 
 ### Tier S: build one of these
 
-1. **Patient Zero: supply-chain worm early warning.** Replay the Nov 2025 outbreak from the GitHub event stream at 60×, through a materialized view.
-   - An alert fires within about 10 minutes of onset.
-   - A Guild "incident commander" agent pulls the blast radius through a ClickHouse integration and writes the advisory.
-   - A second agent checks *your* repos and lockfiles for affected packages and opens pin and rotate PRs.
-   - Optional: a live mode on the GitHub Events API.
+1. **Packet: EDR for AI coding agents.**
+   - Claude Code / Cursor hooks stream every agent action into ClickHouse as RunReveal-format events.
+   - Detections cover what malware wants an agent to do: read credential files, change its own safety settings, run with permission-bypass flags from a non-interactive parent, reach unknown hosts, create public repos.
+   - A pre-install hook runs Semgrep on any package the agent tries to install, and blocks it if the install scripts look risky.
+   - A Guild responder triages each alert and opens an incident.
+   - *Why now:* the Aug 2025 Nx "s1ngularity" attack launched developers' own AI CLIs to hunt for secrets.
+   - *Wow:* a planted instruction in a test repo nudges the agent toward a decoy credentials file, and it's caught and contained in seconds.
 
-   *Wow:* "this query would have caught it in its first 10 minutes." C★★★ G★★★ P★★★ A★ S★. Effort: medium. Risk: low, since the data is verified.
-2. **Incident → Fix → Guardrail ("fix once, stays fixed").** Your demo app's logs flow into ClickHouse and a detection fires. Guild agents then:
-   - map the route to the code;
-   - open a fix PR;
-   - write and test a new Semgrep rule and add it to CI, so neither people nor AI agents can bring the pattern back.
+   P★★★ G★★★ C★★ S★★ · Effort: medium.
+2. **npm Sniffer: live malicious-package radar.**
+   - Follow npm's public changes feed. I tested `replicate.npmjs.com/registry/_changes`: it's live, about 4.5M packages, no auth.
+   - Cheap metadata red flags first: a newly added install script, provenance that suddenly disappears, one account publishing across many packages at once.
+   - Then fetch the tarball (never execute it) and run Semgrep rules for install-time credential access, obfuscation, invisible Unicode and network calls.
+   - Store hits in ClickHouse. A Guild agent drafts a report for a person to approve and submit.
+   - *Wow:* real suspicious packages flagged live during the event.
 
-   Re-run the traffic and it's blocked. This is Pi's pitch, built. P★★★ G★★★ S★★ C★★ A★. Effort: high.
-3. **LLM in the WHERE clause.** Run ClickHouse AI functions on AkashML.
-   - A SQL pre-filter cuts 75M real web-log lines to about 2K suspicious ones in milliseconds.
-   - `aiClassify` and `aiExtract` label them with a MITRE technique.
-   - `aiRedact` strips PII before any agent sees the data.
-   - Show the cost per 100K classifications.
+   P★★★ S★★★ C★★ G★★ · Effort: medium.
+3. **Worm Watch.** Replay the real Sha1-Hulud 2.0 outbreak (3.2B public GitHub events) through the RunReveal-format pipeline. A RunReveal-style detection fires about 10 minutes after onset, and a Guild agent sizes the blast radius and checks your org. The data and query are already verified (see v1).
 
-   Design point: LLM verdicts are advisory, and deterministic rules keep a veto (ClickHouse's docs call AI-function output untrusted). C★★★ A★★★ G★★ P★★. Effort: medium. Risk: beta feature.
-4. **Agent EDR: a SIEM for your AI agents.** Stream Guild session events into ClickHouse and flag misbehaving agents: credential-policy denials, odd tool sequences, token spikes, new outbound domains. Contain them automatically through Guild by stopping the session, pausing the trigger, or adding a DENY rule. Demo it with a deliberately misbehaving test agent. G★★★ P★★★ C★★ A★. Effort: medium-high.
+   C★★★ P★★★ G★★ S★ · Effort: medium · Risk: low.
+4. **Two-Sided Coverage.** Paste in a threat write-up. A Guild agent writes two things:
+   - a Semgrep rule that stops the pattern in code, checked against test fixtures;
+   - a RunReveal-style detection that catches it at runtime, checked for true and false positives against replayed data in ClickHouse.
 
-### Tier A: strong, but narrower prize fit or more risk
+   It then opens PRs for both. *Wow:* from advisory to two tested guardrails in about 2 minutes.
 
-5. **Issue Gatekeeper for the Software Factory.** The Factory turns issues into PRs, so issues are an input channel to a coding agent. A gatekeeper agent screens new issues for text aimed at AI agents and holds them for human review. A ClickHouse panel from the GitHub event stream shows this happens in the wild: about 15 literal "ignore previous instructions" issues and comments in a 12-day sample. G★★★ P★★★ C★★ A★★. Effort: medium.
-6. **Vibe-Code Vuln Census.** Run the same 20 everyday build prompts through Claude and 4–5 open models (Claude Code on AkashML), with Guardian on. Store every finding in ClickHouse and build a leaderboard by model, CWE, and how often Guardian feedback led to a fix. It also feeds your Semgrep submission. S★★★ A★★★ P★★ C★. Effort: low-medium.
-7. **Phish Radar / Brand Shield.** Type a brand and get its lookalike domains from 2.45B DNS rows and 4.3B rank-history rows, clustered by shared IP, with the newest risers first. An agent drafts takedown reports. In testing, "paypal" turned up about 50K lookalikes across about 8.4K IPs. C★★★ G★★ A★ P★. Effort: low. Weakness: the data is a 2021–22 snapshot.
-8. **Semgrep → Guild Software Factory.** A CI scan files labeled issues; the Factory plans, fixes and reviews; a re-scan gates the merge. ClickHouse tracks time to fix. G★★★ S★★ P★★ C★. Effort: low-medium. Factory runs take minutes, so start one before you go on stage.
-9. **Sensor grid on Akash.** Run low-interaction listeners on several Akash providers in different regions. They stream scan telemetry into ClickHouse in real time, and a Guild agent groups campaigns and publishes a blocklist. This is the strongest "why Akash" story: cheap, permissionless, global. A★★★ C★★★ G★★ P★. Effort: medium-high. Risk: traffic within a few hours is unpredictable, so pad with a replay of the web logs.
-10. **Slopsquat Guard.** A Claude Code hook plus a Guild PR agent that flag dependencies an AI agent adds when they look hallucinated, are brand-new, or are one edit away from a popular package. It uses the PyPI index plus live registry metadata. P★★ S★★ C★★ G★★. Effort: low-medium.
-11. **CloudTrail Kill-Chain Detective.** Load the public flaws.cloud CloudTrail dataset from Summit Route (real attacker activity against a deliberately vulnerable training site). `windowFunnel` and `sequenceMatch` find the steps, and an agent explains the chain and proposes a least-privilege IAM policy. AWS hosts the event and has a judge. C★★★ G★★ P★★. Effort: medium.
+   S★★★ C★★★ G★★★ P★★ · Effort: medium.
+
+### Tier A: strong, but narrower fit or more risk
+
+5. **Ghost Text.** Semgrep rules that find invisible Unicode and hidden instructions in code, configs and AI rules files. These are the GlassWorm (Oct 2025) and "Rules File Backdoor" (2025) techniques.
+   - Scan your org and measure how common this is in public repos.
+   - Open clean-up PRs automatically.
+   - Reveal the hidden text live on stage.
+
+   S★★★ P★★★ G★★ C★★ · Effort: low-medium.
+6. **AI-PR Census.** Find code written by AI agents in public repos. The Claude Code footer shows up in about 250 comments across about 160 repos in 4.5 days of the GitHub data, and GitHub search finds many more.
+   - Scan those diffs with Semgrep, including a custom taint rule.
+   - Chart the results per agent in ClickHouse.
+   - A Guild agent drafts private disclosures.
+
+   This also produces your Semgrep submission. S★★★ P★★★ C★★ G★★ · Effort: medium.
+7. **Upgrade X-Ray.** On every dependency-bump PR, diff the package's actual code between the two versions and run Semgrep on the diff. Look for new install hooks, new network calls, new eval or obfuscation, and new invisible characters, then comment a verdict. Compromised-maintainer releases get in this way.
+
+   S★★★ P★★★ G★★ C★ · Effort: medium.
+8. **MCP Flight Recorder.** A transparent proxy in front of MCP servers logs every tool call and tool definition to ClickHouse. It flags a server that silently rewrites its tool descriptions or adds tools (a "rug pull"), unusual data volumes, and new outbound hosts. Semgrep scans the server code.
+
+   P★★★ C★★ G★★ S★★ · Effort: medium.
+9. **Exposure Time Machine.** Load every lockfile from your repos' git history (package@version × repo × date), plus runtime logs, into ClickHouse. When an advisory lands, answer in milliseconds: were we ever exposed, where, for how long, and was the affected code actually exercised? A Guild agent writes the timeline and the fix PRs.
+
+   C★★★ P★★ G★★ S★★ · Effort: medium.
+10. **Live Attack Theater.** A low-interaction sensor on a cheap cloud VM records real internet scanning all day into ClickHouse in RunReveal format. Show a live map and campaign clustering on stage; a Guild agent writes hourly briefs and blocklists. *Wow:* "these are real scans hitting us during this talk." Start it at 11:00 so data builds up.
+
+    P★★★ C★★★ G★★ · Effort: medium.
+11. **Extension Sniffer.** Watch VS Code / Open VSX and Chrome extension updates and diff each new version with Semgrep: invisible Unicode, new permissions, new remote endpoints, credential access. These are the GlassWorm and hijacked-extension patterns. A Guild agent alerts the orgs that have the extension installed.
+
+    S★★★ P★★★ C★ G★★ · Effort: medium.
 
 ### Tier B: solid but narrower
 
-12. **Patch-to-Rule Variant Hunter.** Starting from a CVE fix, an agent writes a Semgrep rule and tests it on the before and after code. It then finds the same pattern across your org's repos and files issues. S★★★ P★★★ G★★. Effort: medium.
-13. **CI/CD Hardener.** Semgrep's GitHub Actions rules, plus an agent that pins third-party actions to commit SHAs and tightens `permissions:`. Add an anomaly panel over the 73M CI-job rows. S★★ G★★ P★★ C★. Effort: low-medium.
-14. **MCP Server Auditor.** Write Semgrep rules for risky patterns in the MCP servers your team depends on, and have a Guild agent open issues with suggested fixes. S★★★ P★★ G★★. Effort: low-medium.
-15. **Attacked × Reachable prioritizer.** Combine Semgrep Supply Chain reachability with live attack traffic on the same endpoints in ClickHouse to build a "patch now" queue that opens PRs automatically. P★★★ S★★ C★★ G★★. Effort: medium.
-16. **Voice SOC.** On a critical alert, a Guild agent phones the on-call engineer with a briefing, using Guild's Twilio integration and an ElevenLabs voice. Spoken questions are answered from ClickHouse, and remediation is approved by voice. Works as a demo add-on to any idea. P★★ G★★ C★. Effort: medium.
-17. **Canary credentials.** Plant decoy credentials in your own repos and configs. Any use triggers an alert and a ClickHouse timeline, and a Guild agent rotates the real secrets and traces where the decoy leaked from. P★★ G★★ C★. Effort: medium.
-18. **Least-Privilege Copilot for agents.** Compare what each Guild agent actually called with its credential policies, then generate a tighter policy and apply it through the CLI. G★★★ P★★. Effort: medium. Data scale is small.
-19. **DGA / C2 Beacon Hunter.** Compute entropy and n-gram features over 2.45B DNS rows, filter with rank history, and group by IP. Output the detections as Sigma rules. C★★★ G★★ A★. Effort: low. Fairly generic.
-20. **Lateral-Movement Hunter on LANL auth data.** A public dataset of about 1.6B events with labeled red-team activity, so you can show precision and recall live. C★★★ G★. Effort: medium. The download is several GB, so check it first.
+12. **Secret Blast Radius.** Given a leaked key, show everything it touched in milliseconds. Demo it on the public flaws.cloud CloudTrail dataset (real attacker activity against a training site). A Guild agent drafts the rotation plan.
 
-## Recommendation: #1 with a short #2 ending
+    C★★★ P★★ G★★ · Effort: medium.
+13. **Red Button.** One click runs harmless, scripted simulations of worm and agent-abuse behaviors in a sandbox. A ClickHouse scorecard shows which detections fired and how fast, and a Guild agent drafts detections for the gaps.
+
+    P★★ G★★★ C★★ S★ · Effort: medium.
+14. **Prompt DLP.** Catch secrets and PII leaving through LLM prompts, using Semgrep-Secrets-style patterns plus entropy checks in ClickHouse. Redact, alert, and track which tools leak the most.
+
+    P★★ C★★ S★★ G★★ · Effort: low-medium.
+15. **Rotation War Room.** After a leak, Guild agents rotate credentials across GitHub, npm and cloud accounts. Each agent has scoped credential policies and a human approval step. ClickHouse tracks how long each secret was exposed.
+
+    G★★★ P★★ C★★ · Effort: medium.
+16. **Session Hijack Hunter.** Detect stolen session cookies being reused (new device or network, impossible travel) in identity-provider logs at scale, and have a Guild agent revoke the sessions. Use synthetic Okta-format data.
+
+    C★★★ G★★ P★★ · Effort: low-medium.
+17. **CI Runner Watch.** Statically, use Semgrep's GitHub Actions rules (injection, unpinned actions, broad permissions). At runtime, watch job network traffic and new self-hosted runner registrations. A Guild agent opens hardening PRs.
+
+    S★★ C★★ G★★ P★★ · Effort: medium.
+18. **Reviewer Showdown.** Benchmark LLM-only reviewers, Semgrep, and a hybrid on a labeled set of AI-written vulnerabilities. Chart precision, recall and cost, and host the reviewers on Guild with Guild evals.
+
+    S★★★ G★★ C★ P★ · Effort: low-medium.
+19. **Agent Least-Privilege.** Compare what each coding agent is allowed to do (permission allowlists, MCP servers, tokens) with what it actually used. Generate a tighter config, plus Semgrep rules that block risky agent configs in PRs.
+
+    G★★ P★★ S★★ C★ · Effort: low-medium.
+20. **Exposure Diff.** Semgrep pulls the routes, auth decorators and permissions out of each PR and comments exactly what new attack surface the PR adds. History lives in ClickHouse.
+
+    S★★★ P★★ G★★ C★ · Effort: low-medium.
+
+## Recommendation: Packet (#1), plus the Semgrep install gate from #2 and the Worm Watch replay from #3 as proof of scale
+
+It's the one idea that is at once:
+- cool and timely for Pi: AI agents are the new attack surface, with live containment on stage;
+- a real ClickHouse workload with a RunReveal-compatible layer;
+- real Semgrep static analysis in the loop;
+- a Guild-hosted responder using triggers, integrations and credential policies.
+
+**Team split (4 people):**
+
+| Role | Builds |
+|---|---|
+| Data | ClickHouse service, `logs` / `signals` tables, webhook and detection runner, a 100M-event synthetic fleet, the worm replay slice |
+| Sensor | Claude Code hooks → webhook; the pre-install Semgrep gate; 5–6 agent-behavior detections |
+| Responder | Guild API trigger, native responder agent, a custom integration to the mock (REST or MCP through a tunnel), GitHub integration, credential policies |
+| Story + Semgrep | Semgrep finding (see below), demo script, slides with Packet, a README with a per-sponsor checklist, a backup video |
+
+**Timeline:**
 
 | Time | Work |
 |---|---|
-| 11:00–11:45 | Start a ClickHouse Cloud trial and copy the Nov 20–26 2025 slice. Set up the Guild account and CLI. Test integration auth first and give it 30 minutes at most. |
-| 11:45–13:30 | Build the detector (materialized view plus replay script). Create Query API endpoints: signal, blast radius, victim repos. Write a native "incident commander" agent with an API trigger. |
-| 13:30–15:00 | Wire the alert to the trigger. Add a second agent: "are we affected?" (run Semgrep Supply Chain on your repo, then a pin PR). Add AkashML summaries through a custom integration. |
-| 15:00–16:30 | Build a dashboard showing rows scanned and ms, and publish the agents to the Agent Hub. Record a 2-minute backup video, write the README, and submit. The Semgrep person submits separately. |
+| 11:00–11:45 | Setup and smoke tests. Do the tunnel and the Guild integration first, since they're the riskiest. |
+| 11:45–14:00 | Build in parallel. |
+| 14:00–15:00 | Wire everything end to end. |
+| 15:00–16:00 | Freeze, rehearse, record the backup video. |
+| 16:00–16:30 | README and submit. |
 
-What to show each judge:
-- **ClickHouse:** rows scanned, milliseconds, and the action the alert triggered.
-- **Guild:** sessions, sub-agents, triggers, the custom integration, credential policies, published agents.
-- **Akash:** why open, decentralized inference suits security data (data sovereignty, cost per 100K events).
-- **Pi:** find → understand → fix → prevent.
+If you're behind at 14:00, drop the MCP mock (keep REST) and the synthetic fleet. Keep the live chain: hook → detection → Guild → incident.
 
-## Semgrep side-quest (one person, about 1 hour)
+**Demo (3 minutes):**
+1. Packet, and why now: s1ngularity.
+2. One query over 3.2B events catches the outbreak at 03:10 UTC.
+3. The agent tries to install a local test package whose install script matches a rule (never executed). The Semgrep gate blocks it and shows the evidence.
+4. A planted instruction steers the agent toward a decoy credentials file. The detection fires and Guild opens the incident in seconds.
+5. Fleet-scale numbers, and the "RunReveal-compatible" closer.
 
-- Install Guardian.
-- Have agents build ordinary features (auth middleware, file upload, webhook receiver, CI workflow, ML model loading, an MCP tool), once on Claude and once on open models through AkashML.
-- Log every finding with the prompt, model, diff, Guardian output and fix.
-- Submit the most surprising one, especially if it's something AI agents do that people rarely do. Examples:
-  - pinning old dependency versions with known CVEs;
-  - turning off TLS verification to "fix" a certificate error;
-  - CI steps that put untrusted event fields into shell commands;
-  - loading untrusted model files with unsafe deserialization.
-- Package it with a one-paragraph "why it matters", the fix, and the line "Guardian caught it before commit."
+## Semgrep finding track (one person)
 
-## Appendix: snippets
+- **Main route:** the AI-PR Census (#6). Pick one narrow, high-signal pattern. Scan AI-authored diffs with registry rules plus one custom taint rule, confirm the hits by hand, and report them privately. Submit the best one, redacted until it's fixed.
+- **Show the craft:** the custom rule, its test fixtures, and the variants it finds.
+- **Backup:** Semgrep Guardian findings in the code your own agents write today.
 
-The detector, verified against the playground in about 1 s:
+## Mascot
 
-```sql
-SELECT toStartOfTenMinutes(created_at) AS t,
-       count() AS events,
-       uniq(actor_login) AS accounts
-FROM github_events
-WHERE event_type = 'CreateEvent'
-  AND created_at BETWEEN '2025-11-24 02:00:00' AND '2025-11-24 05:00:00'
-  AND match(splitByChar('/', repo_name)[2], '^[a-z0-9]{18}$')
-GROUP BY t ORDER BY t;
-```
+**Packet, the sniffer beagle**, in `assets/mascot/`:
+- `beagle.svg` / `beagle.png` (1024 px, transparent background)
+- `beagle-icon.svg` / `beagle-icon-512.png`, plus `favicon-32.png`
+- `beagle-plate.png`, a presentation sheet with palette and sizes
+- `PHILOSOPHY.md`, the design notes
 
-Copying the slice into your own service is untested. It should work; if it doesn't, use `url()` against the playground's HTTP endpoint.
-
-```sql
-INSERT INTO gh.github_events
-SELECT * FROM remoteSecure('play.clickhouse.com:9440', 'default.github_events', 'play', '')
-WHERE created_at BETWEEN '2025-11-20' AND '2025-11-27';
-```
-
-AkashML as the AI-function backend. This needs self-hosted ClickHouse 26.8+ and is untested; the format follows the ClickHouse docs.
-
-```sql
-CREATE NAMED COLLECTION akashml AS
-  provider = 'openai',
-  endpoint = 'https://api.akashml.com/v1/chat/completions',
-  model = 'openai/gpt-oss-20b',
-  api_key = '<AKASHML_KEY>';
-SET ai_function_text_default_credentials = 'akashml';
-```
+The mascot files have no text, so you can rename it freely.
 
 ## Sources
 
-- Event page: https://luma.com/cyberhack
-- About Pi: https://www.vcaonline.com/news/2026061008/pi-raises-35m-to-make-security-scale-as-fast-as-code/
-- Sha1-Hulud 2.0 reporting:
-  - https://www.elastic.co/blog/shai-hulud-worm-2-0-updated-response
-  - https://redhuntlabs.com/blog/sha1-hulud-the-second-coming-github-patterns-exposes-a-deeper-npm-attack/
-  - https://cloudflare.semgrep.dev/blog/2025/digging-for-secrets-sha1-hulud-the-second-coming-of-the-npm-worm
-- Docs:
-  - https://docs.guild.ai/llms.txt
-  - https://clickhouse.com/docs/llms.txt
-  - https://docs.semgrep.dev/llms.txt
-  - https://akashml.com/docs/llms.txt
+- RunReveal joining ClickHouse: https://blog.runreveal.com/runreveal-is-joining-clickhouse/
+- RunReveal docs index: https://docs.runreveal.com/llms.txt
+- RunReveal PQL: https://github.com/runreveal/pql
+- Guild free tokens: https://www.guild.ai/pricing
+- s1ngularity: https://wiz.io/blog/s1ngularity-supply-chain-attack · https://orca.security/resources/blog/s1ngularity-supply-chain-attack/
+- GlassWorm: https://koi.ai/blog/glassworm-first-self-propagating-worm-using-invisible-code-hits-openvsx-marketplace
+- Rules File Backdoor: https://thehackernews.com/2025/03/new-rules-file-backdoor-attack-lets.html
+- npm replication API changes: https://github.blog/changelog/2025-02-27-changes-and-deprecation-notice-for-npm-replication-apis/
