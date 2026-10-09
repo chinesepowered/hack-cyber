@@ -2,282 +2,225 @@
 
 # Beagle Brigade
 
-**Scout sniffs every new npm and PyPI release for malware, in real time.**
+Real-time malware detection for new npm and PyPI releases.
 
-Attackers have pushed malware into npm and PyPI thousands of times in the past
-year, and they did not break in: they published. A stolen maintainer token
-becomes a new version of a package you already depend on, and it executes on
-every laptop and CI runner that installs it, before anyone opens a file.
-Beagle Brigade watches both registries continuously, pulls each new release
-into a sandbox within seconds of publication, analyses it with Semgrep
-dataflow rules without ever executing it, scores it, and hands anything
-suspicious to an AI agent that returns a verdict an on-call engineer can act
-on in under a minute.
+Attackers regularly publish malicious versions of npm and PyPI packages,
+usually with a stolen maintainer token. Install scripts run that code on every
+developer machine and CI runner that installs the package, before anyone
+reviews it. Beagle Brigade watches both registries, downloads each new release
+into a sandbox within seconds, analyses it with Semgrep dataflow rules without
+executing it, and sends anything suspicious to an AI triage agent that returns
+a verdict and recommended actions.
 
-Everything here is defensive. It watches public registries for malicious
-uploads, it is not pointed at anyone, and it never runs what it downloads.
+The project is defensive. It only reads public registry data and never runs
+the code it downloads.
 
 ![Beagle Brigade dashboard](docs/dashboard.png)
 
-📺 **Demo video:** _YOUTUBE_LINK_HERE_ &nbsp;·&nbsp; built by
-[`demo/`](demo) (narration + screen capture, timed automatically)
+**Demo video:** _YOUTUBE_LINK_HERE_
 
 ---
 
-## By the numbers
+## Results
 
-| | |
+| Metric | Value |
 |---|---|
-| Real npm and PyPI releases scanned live during the hackathon | **184** |
-| Real releases Scout barked at (scored malicious) | **0** |
-| Real releases flagged for a human look | **1** (an oversized archive) |
-| Inert malware fixtures caught | **4 of 4**, each scoring 100 |
-| Honest native-build control | scores **13**, stays clean |
-| Real npm registry events in ClickHouse | **9.5M**, aggregated in under a second |
-| Semgrep findings in the AI-written repo | **12 → 0** |
-
-Precision is the point. A scanner that barks at real packages gets switched
-off on day one.
+| Real npm and PyPI releases scanned live during the hackathon | 184 |
+| Real releases scored malicious | 0 |
+| Real releases flagged for review | 1 (oversized archive) |
+| Malware test fixtures detected | 4 of 4 (score 100) |
+| Benign native-build fixture | score 13 (clean) |
+| npm registry events stored in ClickHouse | 9.5M |
+| Semgrep findings in this repository | 12 found, 0 open |
 
 ---
 
-## Sponsors at a glance
+## Sponsors
 
-| Sponsor | How we used it | The headline |
+| Sponsor | How we used it | Result |
 |---|---|---|
-| **ClickHouse** | The entire data layer: live scan results plus replicated registry history | **9.5M** real npm change events, loaded at ~49k rows/sec, full-table aggregates in **under a second**, dashboard counters in **single-digit ms** |
-| **Semgrep** | The detection engine (custom taint rules for install-time malware), plus **Semgrep Guardian** watching the AI that wrote this repo | **13** passing rule tests, **3 false-positive classes** fixed (`swarph-cli` 100 → 0), and Guardian caught **Trojan Source characters the AI wrote into our own Trojan Source detector** |
-| **Guild.ai** | Hosts the triage agent that turns a score into a decision | Agent published via Guild's API, returns verdict + actions + confidence, and correctly calls our own false positives benign |
+| ClickHouse | The only datastore: scan results, findings, detections and replicated npm registry history | 9.5M rows, loaded at ~49k rows/sec; full-table aggregates under 1 second, dashboard queries in single-digit milliseconds |
+| Semgrep | Detection engine (custom taint rules), and Semgrep Guardian on the AI-written code in this repo | 13/13 rule tests passing; 3 false-positive classes fixed; 12 findings in the repo fixed or triaged, including bidi characters in our own scanner |
+| Guild.ai | Hosts the triage agent that reviews each detection | Verdict, reasoning, actions and confidence written back to each detection; correctly marks false positives as likely benign |
 
-Not a sponsor: **ElevenLabs**, used only to narrate the demo video.
+ElevenLabs (not a sponsor) was used only for the demo video narration.
 
 ---
 
-## How it works
+## Architecture
 
 ```mermaid
 flowchart LR
-  A["npm _changes feed<br/>PyPI updates RSS"] --> B["sandboxed fetch<br/>never executed"]
-  B --> C["Semgrep taint rules<br/>+ text heuristics"]
-  C --> D["scoring<br/>combinations convict"]
-  D --> E[("ClickHouse · GCP Tokyo<br/>logs · releases<br/>findings · detections")]
-  E --> F["Guild agent<br/>verdict · actions · confidence"]
+  A["npm _changes feed<br/>PyPI updates RSS"] --> B["sandboxed fetch<br/>(never executed)"]
+  B --> C["Semgrep rules<br/>+ heuristics"]
+  C --> D["scoring"]
+  D --> E[("ClickHouse<br/>GCP Tokyo")]
+  E --> F["Guild triage agent"]
   F --> E
-  E --> G["live dashboard<br/>Scout barks here"]
+  E --> G["dashboard"]
 ```
 
-1. **Tail the registries.** npm's replication `_changes` feed by sequence
-   number, PyPI's updates RSS. New releases surface within seconds.
-2. **Fetch into a sandbox.** Download the tarball or wheel, extract under a
-   strict size/count/path budget, never run a line of it.
-3. **Analyse.** Semgrep dataflow rules, plus cheap heuristics for things
-   Semgrep is a poor fit for (entropy blobs, bidi Unicode, minified bundles).
-4. **Score.** Combinations convict; single rules do not.
-5. **Store.** Every release, finding and detection lands in ClickHouse.
-6. **Triage.** Each detection wakes the Guild agent, which writes the
-   judgement back onto the detection row.
-7. **Show.** Live dashboard. Scout switches to his alert pose on a bark.
+1. **Collect.** Poll npm's replication `_changes` feed and PyPI's updates RSS
+   for new releases.
+2. **Fetch.** Download the tarball or wheel and extract it under size, file
+   count and path limits. Nothing is executed.
+3. **Analyse.** Run Semgrep rules plus a few text heuristics (encoded blobs,
+   bidirectional Unicode, minified files).
+4. **Score.** Combine rule hits and metadata signals into a 0 to 100 score.
+5. **Store.** Write releases, findings and detections to ClickHouse.
+6. **Triage.** Send each detection to the Guild agent and store its verdict.
+7. **Display.** Show the live feed, detections and queries on the dashboard.
 
 ---
 
 ## ClickHouse
 
-ClickHouse is not a log sink bolted on at the end; it is the only datastore in
-the project. Schema in [`scanner/schema.sql`](scanner/schema.sql).
+ClickHouse Cloud (GCP `asia-northeast1`) is the project's only datastore.
+Schema: [`scanner/schema.sql`](scanner/schema.sql).
 
-**Scale.** Beyond live scan results we replicated **9,513,792 real npm
-registry change events** straight from npm's replication feed, loaded by
-[`backfill.py`](scanner/beagle/backfill.py) with parallel workers walking
-disjoint slices of the sequence space at roughly **49,000 rows/sec**. This is
-real registry history, not synthetic filler: it backs publisher-cadence
-baselines and the takedown queries.
-
-**Latency.** The dashboard reports ClickHouse's own server-side timing, not a
-stopwatch around `fetch()`. Counter queries land in single-digit milliseconds;
-a `uniqExact` over the whole 9.5M-row history table runs in well under a
-second. The query panel on the dashboard runs five preset analyst queries
-live, showing the SQL, the rows scanned and the elapsed time.
-
-**Shape.** Table names and the signals/alerts split follow RunReveal's model
-(`logs`, `releases`, `findings`, `detections`, with `signals` and `alerts` as
-views split on whether a notification fired), so the layout reads as familiar
-to the ClickHouse team. That is a compatible schema, not an integration.
-
-**Insights drive action.** A detection row is what wakes the Guild agent, and
-the agent writes its verdict back into the same table that the dashboard
-renders.
+- **Data model.** `logs`, `releases`, `findings` and `detections` tables, with
+  `signals` and `alerts` views over detections. The layout follows RunReveal's
+  table model. It is a compatible schema, not an integration.
+- **Scale.** We loaded 9,513,792 real npm registry change events from npm's
+  replication feed using parallel workers
+  ([`backfill.py`](scanner/beagle/backfill.py)) at about 49,000 rows per
+  second. This history supports publisher baselines and takedown queries.
+- **Query performance.** The dashboard shows ClickHouse's server-side timing.
+  Counter queries return in single-digit milliseconds, and a `uniqExact` over
+  the full 9.5M-row table runs in under a second. The query panel runs five
+  preset analyst queries and shows the SQL, rows scanned and elapsed time.
+- **Action.** New detection rows trigger the Guild agent, which writes its
+  verdict back to the same table.
 
 ---
 
 ## Semgrep
 
-Semgrep is the detection engine. Rules live in [`rules/`](rules) with their
-test fixtures in [`rules/tests/`](rules/tests).
+Semgrep is the detection engine. Rules are in [`rules/`](rules) and tests in
+[`rules/tests/`](rules/tests).
 
 ```bash
 semgrep --test --config rules/ rules/tests/     # 13/13 passing
 ```
 
-### What the rules do that grep cannot
+### Detection rules
 
-They are taint-mode rules: they fire when data actually *flows* from a source
-to a sink through assignments and sanitizers, not when two strings happen to
-share a file. A credential file read reaching an outbound request is a finding;
-the same two lines with nothing connecting them is not.
+The rules use taint mode, so they fire only when data flows from a source to a
+sink. Coverage:
 
-### Install-time execution is the hinge
+- Credential files (SSH keys, cloud credentials, npm tokens) sent to the network
+- Environment variables sent to the network from install-time code
+- Downloaded or base64-decoded data passed to `eval`, `Function` or `exec`
+- Process spawning and network calls in install scripts
 
-Code in a `preinstall`/`install`/`postinstall` hook or a `setup.py` command
-class runs on every machine that installs the package. The same code in a
-library function someone must deliberately call is far less serious. Rules
-that only matter at install time carry `install_context: true`, and the
-scanner **discards them entirely** unless they land in a file that genuinely
-runs during installation, resolved from `package.json` scripts or `setup.py`.
-Before that gate existed, scanning `express` produced dozens of hits.
+Install-script rules are only kept when the match is in a file that runs at
+install time (resolved from `package.json` scripts or `setup.py`). In scoring
+([`score.py`](scanner/beagle/score.py)), install-time rules have low weights,
+and a "malicious" verdict requires dataflow evidence: install-time execution
+combined with exfiltration or a loader, or a credential file reaching the
+network. The benign native-build fixture scores 13; the four malware fixtures
+score 100.
 
-### Combinations convict
+Limitation: the open-source Semgrep engine tracks taint within a function
+only. Cross-function flows need Semgrep Pro. This case is marked
+`todoruleid` in the test suite.
 
-`child_process.exec` appears in thousands of honest build scripts. So
-install-time rules carry deliberately low weights and the score comes from
-combination bonuses in [`score.py`](scanner/beagle/score.py): install-time
-execution **plus** credential access, or obfuscation **plus** a loader.
+### False positives fixed
 
-The negative control proves it. `fixtures/npm-benign-native-build` runs
-`node-gyp rebuild` from a postinstall hook, exactly like thousands of real
-packages, and scores **13**. The four malware fixtures score **100**.
+Testing against live registry traffic surfaced three false-positive classes.
+Each now has a negative test case.
 
-### The hard part was not crying wolf
-
-Naive rules flag almost everything in a real registry. Three false-positive
-classes we found against live traffic and fixed, each now with a negative
-control in the test suite:
-
-| What fired | Why it was wrong | Fix |
+| Pattern | Problem | Fix |
 |---|---|---|
-| Every well-behaved API client | Reading a token from the environment and sending it in an `Authorization` header is the *correct* way to use an API key | Split credential **files** (never legitimate) from **environment** variables (only suspicious at install time), and excluded the auth-header shape |
-| A package that strips a BOM | The invisible-Unicode heuristic matched `text.replace(/^\ufeff/, "")` | Narrowed to bidi override/isolate characters, which have no honest use in source |
-| A Bearer-token parser | `$CP.exec(...)` also matches `RegExp.prototype.exec`, so `/^Bearer\s+(.+)$/i.exec(header)` read as a second-stage loader | Constrained the receiver by name |
+| API clients | Sending an environment token in an `Authorization` header matched the exfiltration rule | Split credential-file and environment-variable rules; environment rule applies only at install time and excludes auth headers |
+| Byte-order marks | The Unicode heuristic matched code that strips a BOM (U+FEFF) | Restricted to bidi override and isolate characters |
+| `RegExp.exec` | `$CP.exec(...)` also matched regular-expression `.exec()` calls | Restricted the receiver to child-process names |
 
-Measured on real packages, before and after:
-
-| Package | Before | After |
+| Package | Score before | Score after |
 |---|---|---|
-| `swarph-cli` | 100 | **0** |
-| `breakaway` | 100 | **16** |
-| `@paperclipai/plugin-cloudflare-sandbox` | 45 | **8** |
-| malware fixtures | 100 | **100** |
+| `swarph-cli` | 100 | 0 |
+| `breakaway` | 100 | 16 |
+| `@paperclipai/plugin-cloudflare-sandbox` | 45 | 8 |
+| Malware fixtures | 100 | 100 |
 
-### An honest limitation
+### Semgrep Guardian on the AI-written code
 
-The **OSS Semgrep engine is intraprocedural**: taint crossing a function
-boundary needs Pro Engine. Rather than quietly claim coverage we do not have,
-that case is recorded as a `todoruleid` in
-[`rules/tests/exfiltration.js`](rules/tests/exfiltration.js), so it shows up
-on every test run.
-
-### Semgrep Guardian: the AI-generated code got scanned too
-
-Every line in this repository was written by an AI coding agent (Claude
-Code). So we pointed Semgrep at its output as well: **Semgrep Guardian** ran
-inside the agent session, scanning each file as it was written, and we swept
-the whole repo with Semgrep's registry rulesets. Twelve findings, every one in
-AI-written code. The full write-up is in
+All code in this repository was written by an AI coding agent (Claude Code).
+Semgrep Guardian ran in the agent session, and we scanned the full repository
+with the Semgrep registry rulesets. Write-up:
 [`docs/semgrep-guardian-finding.md`](docs/semgrep-guardian-finding.md).
 
-![Semgrep finding: Trojan Source characters in our Trojan Source detector](docs/guardian.png)
+![Bidirectional characters in the scanner](docs/guardian.png)
 
-**The finding: Trojan Source characters inside our Trojan Source detector.**
-To catch the CVE-2021-42574 attack (bidirectional control characters that
-make code read differently to a human than to the parser), the agent wrote a
-detection regex... by pasting the raw, invisible U+202A–U+202E and
-U+2066–U+2069 characters directly into
-[`scan.py`](scanner/beagle/scan.py). The line rendered as an innocent-looking
-`[-]` in every editor and diff. Semgrep's
-`contains-bidirectional-characters` rule flagged it. The same session had also
-left stray U+FEFF characters in the README and the slide deck.
+The main finding: the agent wrote raw bidirectional control characters
+(U+202A to U+202E, U+2066 to U+2069) into the regex in
+[`scan.py`](scanner/beagle/scan.py) that detects Trojan Source
+(CVE-2021-42574). The characters are invisible, so the line displayed as
+`[-]` in editors and diffs. Semgrep's `contains-bidirectional-characters`
+rule flagged it.
 
-It is exactly the class of bug the code was written to find, introduced by
-the code-writing agent, invisible in review, and caught only by a tool that
-reads bytes rather than glyphs.
+The agent then added the same characters twice more while documenting the
+fix. The cause: the agent writes files through JSON tool calls, and JSON
+decodes an escape sequence such as backslash-u-202A into the character itself.
+All occurrences are now ASCII escapes, the detector was re-tested, and
+[`scripts/check_invisible.py`](scripts/check_invisible.py) checks for these
+characters.
 
-**It happened three times, and the cause is systematic.** While writing up
-the fix, the agent put the same raw characters back into this README, and
-then again into the write-up. The agent edits files through tool calls whose
-arguments are JSON, and JSON decodes a backslash-u escape into the character
-itself. So every time the agent typed the *safe* escaped form, the file
-received the invisible character. An agent writing files this way cannot
-reliably type a Unicode escape, and nobody can see that it failed.
-[`scripts/check_invisible.py`](scripts/check_invisible.py) now sweeps for it. Fixed by rewriting every one as an ASCII
-escape (`r"[\u202a-\u202e\u2066-\u2069]"`). The detector still catches real
-Trojan Source and still ignores honest BOM handling, verified after the fix.
-
-What else the sweep turned up, all fixed or explicitly triaged:
-
-| Finding | Verdict | Action |
+| Finding | Status | Fix |
 |---|---|---|
-| Bidi and BOM characters in `scan.py`, `README.md`, `slides.html` | **Real** | Rewritten as ASCII escapes |
-| ClickHouse password sent in the URL query string, in both the Python and web clients (found by review during the same pass) | **Real**: query strings land in proxy and access logs | Moved to `X-ClickHouse-User` / `X-ClickHouse-Key` headers |
-| f-string table names in `INSERT` / `TRUNCATE` | **Real but internal** | Every identifier is checked by `identifier()` against a strict pattern; `releases; DROP TABLE logs` is rejected |
-| `sqlalchemy-execute-raw-query` | False positive: no SQLAlchemy here, values are bound as ClickHouse parameters | `nosemgrep` with the reason inline |
-| Playwright `goto` / `evaluate` injection in demo tooling | Env-driven URL was a real gap; the rest were constant inputs | URL now locked to localhost; the rest annotated with reasons |
-
-Result: **12 findings → 0**, rule tests still 13/13.
+| Bidi and BOM characters in `scan.py`, `README.md`, `slides.html` | Fixed | Replaced with ASCII escapes |
+| ClickHouse password in URL query strings (Python and web clients), found during the same review | Fixed | Moved to `X-ClickHouse-User` / `X-ClickHouse-Key` headers |
+| Table names in f-string SQL (`INSERT`, `TRUNCATE`) | Fixed | Validated against a strict identifier pattern |
+| `sqlalchemy-execute-raw-query` | False positive (no SQLAlchemy; values are bound parameters) | `nosemgrep` with reason |
+| Playwright `goto` / `evaluate` in demo scripts | One fixed, rest false positives | URL restricted to localhost; others annotated |
 
 ---
 
 ## Guild.ai
 
-A detection is evidence, not a decision. The score says *something fired*; an
-engineer still has to decide whether to wake anyone and what to rotate.
+The triage agent runs on Guild. It was created and published through Guild's
+REST API and installed in a workspace. Prompt:
+[`agent/PROMPT.md`](agent/PROMPT.md).
 
-The triage agent runs **on Guild**, created and published through Guild's REST
-API and installed into a workspace. Its prompt is
-[`agent/PROMPT.md`](agent/PROMPT.md). The scanner starts a Guild session with
-the detection and its evidence,
-[`guild.py`](scanner/beagle/guild.py) polls for the reply, parses the four
-sections and writes them back onto the ClickHouse detection row, which is what
-the dashboard renders.
+For each detection, [`guild.py`](scanner/beagle/guild.py) starts a Guild
+session with the rule hits and matched code, waits for the reply, and stores
+the verdict, reasoning, actions and confidence on the ClickHouse detection
+row. The dashboard displays it.
 
-Real output, on our typosquat fixture:
+Example output for the `expres` typosquat fixture:
 
-> **VERDICT** `MALICIOUS`: a typosquat of the popular `express` library that
-> steals SSH private keys during installation.
+> **VERDICT** `MALICIOUS`: a typosquat of `express` that steals SSH private
+> keys during installation.
 >
-> **WHY** `bb-meta-install-hook` in `package.json` triggers a postinstall
-> script… `bb-js-recon-sensitive-paths` (line 16) reads the private SSH key
-> from the home directory… line 18 transmits it via an outbound HTTPS POST.
+> **WHY** The `postinstall` hook runs `scripts/postinstall.js`, which reads
+> `~/.ssh/id_rsa` (line 16) and sends it in an HTTPS POST (line 18).
 >
-> **ACTIONS** Remove the dependency · search internal lockfiles · rotate SSH
-> private keys on any machine that installed it · report to the registry.
+> **ACTIONS** Remove the dependency. Search internal lockfiles. Rotate SSH
+> keys on affected machines. Report to the registry.
 >
-> **CONFIDENCE** `HIGH`: the code explicitly and unconditionally exfiltrates
-> a private key at install time.
+> **CONFIDENCE** `HIGH`
 
-Just as important, it **declines to cry wolf**. Handed our own
-false positives it returned `LIKELY BENIGN` with the reason, which is exactly
-the behaviour that keeps a scanner switched on.
-
-The prompt also forbids naming or blaming a maintainer: a compromised
-publishing token is far more common than a malicious maintainer, and the
-account owner is usually the first victim.
+For scanner false positives the agent returns `LIKELY BENIGN` with a reason.
+The prompt does not allow it to name or blame maintainers, since compromised
+publishing tokens are the more common cause.
 
 ---
 
 ## Running it
 
-Prerequisites: Python 3.11+ with [uv](https://docs.astral.sh/uv/), Node 20+
-with pnpm, Semgrep (`uv tool install semgrep`).
+Requirements: Python 3.11+ with [uv](https://docs.astral.sh/uv/), Node 20+
+with pnpm, and Semgrep (`uv tool install semgrep`).
 
 ```bash
-cp .env.example .env            # ClickHouse + Guild credentials
+cp .env.example .env            # ClickHouse and Guild credentials
 
 cd scanner
 uv sync
-uv run beagle init-db                      # apply schema.sql
-uv run beagle replay                       # scan local fixtures (deterministic)
-uv run beagle live --duration 600          # tail npm + PyPI for real
-uv run beagle backfill --target 5000000    # bulk-load registry history
-uv run beagle triage                       # hand detections to the Guild agent
+uv run beagle init-db                      # create tables
+uv run beagle replay                       # scan local test fixtures
+uv run beagle live --duration 600          # scan new npm and PyPI releases
+uv run beagle backfill --target 5000000    # load registry history
+uv run beagle triage                       # send detections to the Guild agent
 uv run beagle stats
 
 cd ../web && pnpm install && pnpm dev      # http://localhost:3100
@@ -285,32 +228,27 @@ cd ../web && pnpm install && pnpm dev      # http://localhost:3100
 
 ---
 
-## Ground rules
+## Safety
 
-These are enforced in code, not just stated here.
+- **No execution.** Archives are extracted with limits on size, file count
+  and per-file size. Path traversal, absolute paths, symlinks and device files
+  are rejected. See [`fetch.py`](scanner/beagle/fetch.py).
+- **No public accusations.** Detections and agent verdicts are for internal
+  review. A person confirms before anything is reported.
+- **No maintainer attribution.** Reports go to the registry's security team.
+- **Inert fixtures.** Test packages in [`scanner/fixtures/`](scanner/fixtures)
+  point at `.invalid` hosts, contain no payload and are never published.
 
-- **Nothing downloaded is ever executed.** Archives are read as bytes and
-  extracted under a size/count/path budget. Extraction rejects path traversal,
-  absolute paths, symlinks and device entries, and bounds total uncompressed
-  size against decompression bombs. See [`fetch.py`](scanner/beagle/fetch.py).
-- **A human confirms before anything is called malicious in public.** The
-  scanner produces evidence, the agent produces a judgement, neither publishes
-  an accusation.
-- **No maintainer is named or blamed.** Everything routes to the registry's
-  security team.
-- **Fixtures are inert.** Test inputs in
-  [`scanner/fixtures/`](scanner/fixtures) target `.invalid` hosts that cannot
-  resolve, carry no payload, and are never published anywhere.
+## Repository layout
 
-## Layout
-
-| Path | What |
+| Path | Contents |
 |---|---|
-| `rules/` | Semgrep rules and their test fixtures |
-| `scanner/` | Python pipeline: feeds, fetch, scan, score, store, Guild triage |
-| `scanner/fixtures/` | Inert detection fixtures, including the negative control |
+| `rules/` | Semgrep rules and tests |
+| `scanner/` | Python pipeline: feeds, fetch, scan, score, store, triage |
+| `scanner/fixtures/` | Test packages, including a benign control |
 | `web/` | Next.js dashboard |
-| `agent/` | The Guild triage agent's prompt |
-| `demo/` | Narration, screen recording and video build |
-| `slides.html` | Four-slide pitch deck |
-| `brand/` | Scout |
+| `agent/` | Guild agent prompt |
+| `demo/` | Demo video tooling |
+| `scripts/` | Repository checks |
+| `slides.html` | Pitch deck |
+| `brand/` | Mascot assets |
