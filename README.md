@@ -17,7 +17,7 @@ the code it downloads.
 
 ![Beagle Brigade dashboard](docs/dashboard.png)
 
-**Demo video:** _YOUTUBE_LINK_HERE_
+**Demo video:** https://www.youtube.com/watch?v=Ls9wZwJyJx8
 
 ---
 
