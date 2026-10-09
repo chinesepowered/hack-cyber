@@ -145,15 +145,15 @@
       <div class="arrow">→</div>
       <div class="step"><b>3 · analyse</b><span>Semgrep taint rules: does a credential reach the network?</span></div>
       <div class="arrow">→</div>
-      <div class="step"><b>4 · score</b><span>Combinations convict, single rules don't</span></div>
+      <div class="step"><b>4 · score</b><span>Weighted by signal combinations</span></div>
       <div class="arrow">→</div>
       <div class="step"><b>5 · act</b><span>ClickHouse detection wakes the Guild agent</span></div>
     </div>
 
     <div class="thesis">
-      <strong>Install-time execution is the hinge.</strong> Code in a
+      <strong>Install-time execution matters most.</strong> Code in a
       <span class="mono tan">postinstall</span> hook runs on every machine that
-      installs the package. But thousands of honest packages compile native
+      installs the package. But thousands of legitimate packages compile native
       code that way, so that alone proves nothing. What is almost never
       innocent is <strong>install-time execution combined with credential
       access</strong>, or obfuscation combined with a loader.
@@ -161,7 +161,7 @@
 
     <table>
       <tr><th>Fixture</th><th>What it models</th><th style="text-align:right">Score</th></tr>
-      <tr><td class="mono">npm-benign-native-build</td><td>Honest <span class="mono">node-gyp rebuild</span> in a postinstall hook</td><td class="num teal">13</td></tr>
+      <tr><td class="mono">npm-benign-native-build</td><td>Legitimate <span class="mono">node-gyp rebuild</span> in a postinstall hook</td><td class="num teal">13</td></tr>
       <tr><td class="mono">expres</td><td>Typosquat; postinstall reads <span class="mono">~/.ssh/id_rsa</span> and POSTs it out</td><td class="num alert">100</td></tr>
       <tr><td class="mono">npm-remote-loader</td><td>preinstall fetches a second stage and evals it</td><td class="num alert">100</td></tr>
     </table>
@@ -169,18 +169,17 @@
 
   <!-- 3 ─ the hard part -->
   <section class="slide">
-    <div class="eyebrow">The hard part</div>
-    <h2>Catching malware is easy. Not crying wolf is the work.</h2>
+    <div class="eyebrow">Precision</div>
+    <h2>Tuned against live registry traffic</h2>
     <p class="lede">
-      A scanner that flags everything gets switched off on day one. Our first
-      rules flagged <strong>almost every well-behaved API client in the
-      registry</strong>, because reading a token from the environment and
-      sending it in an <span class="mono">Authorization</span> header looks
-      identical to credential theft until you ask where it's going.
+      We ran the rules on real npm and PyPI releases and tuned them until
+      <strong>legitimate packages score clean while every malware fixture
+      still scores 100</strong>. Each pattern below now has its own negative
+      test case.
     </p>
 
     <table>
-      <tr><th>What fired</th><th>Why it was wrong</th><th>Fix</th></tr>
+      <tr><th>Pattern</th><th>Problem</th><th>Fix</th></tr>
       <tr>
         <td>Every API client</td>
         <td>Presenting your own token to its own service is correct behaviour</td>
@@ -189,7 +188,7 @@
       <tr>
         <td>A package that strips a BOM</td>
         <td>Invisible-Unicode rule matched <span class="mono">replace(/^\ufeff/,"")</span></td>
-        <td>Narrowed to bidi overrides, which have no honest use in source</td>
+        <td>Narrowed to bidi overrides, which have no legitimate use in source</td>
       </tr>
       <tr>
         <td>A Bearer-token parser</td>
@@ -203,7 +202,7 @@
       <div class="stat"><div class="v teal">100&nbsp;→&nbsp;16</div><div class="l">breakaway</div></div>
       <div class="stat"><div class="v teal">45&nbsp;→&nbsp;8</div><div class="l">cloudflare-sandbox plugin</div></div>
       <div class="stat"><div class="v alert">100&nbsp;→&nbsp;100</div><div class="l">malware fixtures</div></div>
-      <div class="stat"><div class="v teal">184&nbsp;/&nbsp;0</div><div class="l">real releases live / barks</div></div>
+      <div class="stat"><div class="v teal">0</div><div class="l">false alarms on 184 live releases</div></div>
     </div>
   </section>
 

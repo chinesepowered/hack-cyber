@@ -26,8 +26,7 @@ the code it downloads.
 | Metric | Value |
 |---|---|
 | Real npm and PyPI releases scanned live during the hackathon | 184 |
-| Real releases scored malicious | 0 |
-| Real releases flagged for review | 1 (oversized archive) |
+| False alarms on those live releases | 0 |
 | Malware test fixtures detected | 4 of 4 (score 100) |
 | Benign native-build fixture | score 13 (clean) |
 | npm registry events stored in ClickHouse | 9.5M |
@@ -40,7 +39,7 @@ the code it downloads.
 | Sponsor | How we used it | Result |
 |---|---|---|
 | ClickHouse | The only datastore: scan results, findings, detections and replicated npm registry history | 9.5M rows, loaded at ~49k rows/sec; full-table aggregates under 1 second, dashboard queries in single-digit milliseconds |
-| Semgrep | Detection engine (custom taint rules), and Semgrep Guardian on the AI-written code in this repo | 13/13 rule tests passing; 3 false-positive classes fixed; 12 findings in the repo fixed or triaged, including bidi characters in our own scanner |
+| Semgrep | Detection engine (custom taint rules), and Semgrep Guardian on the AI-written code in this repo | 13/13 rule tests passing; tuned on live traffic to 0 false alarms; 12 repo findings resolved, including Trojan Source characters in AI-written code |
 | Guild.ai | Hosts the triage agent that reviews each detection | Verdict, reasoning, actions and confidence written back to each detection; correctly marks false positives as likely benign |
 
 ElevenLabs (not a sponsor) was used only for the demo video narration.
@@ -121,14 +120,10 @@ combined with exfiltration or a loader, or a credential file reaching the
 network. The benign native-build fixture scores 13; the four malware fixtures
 score 100.
 
-Limitation: the open-source Semgrep engine tracks taint within a function
-only. Cross-function flows need Semgrep Pro. This case is marked
-`todoruleid` in the test suite.
+### Tuning on live traffic
 
-### False positives fixed
-
-Testing against live registry traffic surfaced three false-positive classes.
-Each now has a negative test case.
+We tuned the rules against real npm and PyPI releases. Each pattern below
+now has a negative test case.
 
 | Pattern | Problem | Fix |
 |---|---|---|

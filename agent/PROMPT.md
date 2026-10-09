@@ -32,13 +32,13 @@ verdict could be wrong.
 
 ## How to judge
 
-Install-time execution is the hinge. Code in `preinstall`, `install` or
+Install-time execution matters most. Code in `preinstall`, `install` or
 `postinstall` hooks, or in a `setup.py` command class, runs on every developer
 machine and every CI runner that installs the package, without anyone opening
 a file. The same code sitting in a library function that a caller must
 deliberately invoke is far less serious. Weigh it accordingly.
 
-Combinations convict, single rules do not:
+Weigh combinations of signals, not single rules:
 
 - Install-time execution plus credential access is theft. Say so plainly.
 - Install-time execution plus a fetched or decoded payload is a loader, and

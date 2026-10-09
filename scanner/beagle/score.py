@@ -1,8 +1,8 @@
 """Turn findings and signals into a score, a verdict and a readable summary.
 
 The scoring exists because single rules are weak evidence. `child_process.exec`
-appears in thousands of honest build scripts. Credential reads appear in honest
-CLI tools. What almost never appears in an honest package is install-time
+appears in thousands of legitimate build scripts. Credential reads appear in legitimate
+CLI tools. What almost never appears in a legitimate package is install-time
 execution combined with credential access, or obfuscation combined with a
 loader. Combinations carry the weight here, not individual hits.
 """
@@ -88,7 +88,7 @@ def assess(findings: list[Finding], signals: list[Signal]) -> Verdict:
 
     score = max(0, min(100, score))
 
-    # Conviction needs dataflow, not vibes. Heuristics (encoded blobs, bidi
+    # A malicious verdict requires dataflow evidence. Heuristics (encoded blobs, bidi
     # characters, minified files) and browser-side loaders can raise a
     # package to "suspicious", but "malicious" requires either install-time
     # execution combined with exfiltration or a loader, or a credential file

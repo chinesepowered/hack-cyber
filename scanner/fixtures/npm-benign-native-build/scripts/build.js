@@ -1,4 +1,4 @@
-// Beagle Brigade negative control. This is what an honest postinstall hook
+// Beagle Brigade negative control. This is what a legitimate postinstall hook
 // looks like: it compiles a native addon and touches nothing else.
 //
 // A scanner that flags this is useless, because thousands of real packages

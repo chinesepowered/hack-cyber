@@ -100,7 +100,7 @@ export default function GuardianPage() {
             INVISIBLE = re.compile({fixed})
           </pre>
           <ul className="mt-4 space-y-2 text-[15px] text-ink">
-            <li>Still catches real Trojan Source; still ignores honest BOM handling</li>
+            <li>Still catches real Trojan Source; still ignores BOM handling</li>
             <li>
               <span className="font-mono text-[14px]">scripts/check_invisible.py</span> sweeps every
               file

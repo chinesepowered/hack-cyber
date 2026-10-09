@@ -81,7 +81,7 @@ Python's `re` interprets `\uXXXX` in patterns, so behaviour is unchanged, and
 we verified it after the fix:
 
 - real Trojan Source input is still caught
-- honest BOM handling (`text.replace(/^\ufeff/, "")`) is still ignored
+- BOM handling (`text.replace(/^\ufeff/, "")`) is still ignored
 - `scan.py` is now pure ASCII
 
 `scripts/check_invisible.py` sweeps every tracked text file for these

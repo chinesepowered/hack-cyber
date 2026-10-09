@@ -31,7 +31,7 @@ SEMGREP = shutil.which("semgrep") or shutil.which("semgrep.exe")
 #
 # Deliberately narrow. An earlier version also matched BOM (U+FEFF) and the
 # zero-width range, which flagged real packages whose crime was handling a BOM
-# correctly (`text.replace(/^\ufeff/, "")`). These overrides have no honest
+# correctly (`text.replace(/^\ufeff/, "")`). These overrides have no legitimate
 # use in source.
 INVISIBLE = re.compile(r"[\u202a-\u202e\u2066-\u2069]")
 BASE64_RUN = re.compile(r"[A-Za-z0-9+/=]{200,}")

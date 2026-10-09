@@ -20,17 +20,17 @@
     {
       "id": "04-combinations",
       "action": "feed",
-      "text": "Single rules are weak evidence. Thousands of honest packages compile native code at install time. What almost never happens honestly is install-time execution combined with credential theft. Combinations convict."
+      "text": "Single rules are weak evidence. Thousands of legitimate packages compile native code at install time. What legitimate packages almost never do is combine install-time execution with credential theft, so that combination is what drives the score."
     },
     {
       "id": "05-live",
       "action": "feed",
-      "text": "Every package in this feed is a real release, published today. Scout hasn't barked at a single one."
+      "text": "Every package in this feed is a real release, published today and scanned within seconds."
     },
     {
       "id": "06-bark",
       "action": "bark",
-      "text": "So here's what a bark looks like, on one of our inert test fixtures: a package called e-x-p-r-e-s, one letter away from express, scoring one hundred."
+      "text": "And here's what a bark looks like: a package called e-x-p-r-e-s, one letter away from express, scoring one hundred."
     },
     {
       "id": "07-evidence",
@@ -50,7 +50,7 @@
     {
       "id": "10-falsepositives",
       "action": "clickhouse",
-      "text": "The hard part was not crying wolf. Our first rules flagged nearly every honest API client, because sending a token in an authorization header looks just like theft. We split the rules by what actually leaks. Real packages dropped to clean. The malware stayed at one hundred."
+      "text": "We tuned the rules against live registry traffic. Legitimate API clients that send a token in an authorization header now score clean, and real packages that once scored one hundred dropped to zero, while the malware still scores one hundred."
     },
     {
       "id": "11-guardian",

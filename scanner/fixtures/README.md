@@ -21,8 +21,8 @@ what the demo runs against if the live feed is quiet.
 | `npm-remote-loader` | preinstall hook fetching and evaluating a second stage | malicious |
 | `npm-typosquat-expres` | name one edit from `express`, postinstall spawning a shell | malicious |
 | `pypi-setup-exfil` | `setup.py` install command class exfiltrating AWS credentials | malicious |
-| `npm-benign-native-build` | honest native build with a postinstall hook | clean |
+| `npm-benign-native-build` | legitimate native build with a postinstall hook | clean |
 
 The last one is the important one. A scanner that flags every postinstall
-hook is useless, because thousands of honest packages compile native
+hook is useless, because thousands of legitimate packages compile native
 addons at install time. It is the negative control.

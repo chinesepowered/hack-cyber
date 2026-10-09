@@ -109,7 +109,7 @@ export default function DetectionPanel({
           <div className="text-[17px] font-semibold text-ink">Nothing on the nose yet</div>
           <p className="mx-auto mt-1 max-w-[320px] text-[14px] leading-relaxed text-ink-2">
             Scout is working through the feed. The first flagged package opens here with the code
-            that convicted it.
+            that triggered it.
           </p>
         </div>
       </div>

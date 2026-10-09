@@ -1,7 +1,7 @@
 {
   "name": "npm-benign-native-build",
   "version": "3.0.1",
-  "description": "Beagle Brigade negative control. Honest native build, must score clean.",
+  "description": "Beagle Brigade negative control. Legitimate native build, must score clean.",
   "private": true,
   "repository": {
     "type": "git",

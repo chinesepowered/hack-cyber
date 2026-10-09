@@ -1,10 +1,10 @@
 # Code that runs at install time.
 #
-# On its own this is common and legitimate: thousands of honest packages
+# On its own this is common and legitimate: thousands of legitimate packages
 # compile native addons during install. So these rules carry deliberately
 # LOW weights. They are context, not evidence. The score comes from the
 # combination bonuses in score.py, where install-time execution plus
-# credential access or a remote payload is what actually convicts.
+# credential access or a remote payload is what produces a high score.
 #
 # Two guards keep this quiet:
 #   1. metadata.install_context: true means the scanner drops the finding
