@@ -1,0 +1,168 @@
+# Credential data reaching an outbound sink.
+#
+# The first version of this file had one rule: "env or credential data flows
+# into a network call". Run against real npm and PyPI releases it flagged
+# every well-behaved API client in the registry, because reading a token from
+# the environment and sending it in an Authorization header is the correct
+# way to use an API key. Scoring those 100 would have been both wrong and
+# defamatory.
+#
+# So the rule is split by what is actually being leaked:
+#
+#   * credential FILES (~/.ssh/id_rsa, ~/.aws/credentials, ~/.npmrc) reaching
+#     the network is never legitimate. Full weight, fires anywhere.
+#   * ENVIRONMENT variables reaching the network is only suspicious when it
+#     happens at install time, so that rule is install-gated and carries a
+#     lower weight. An API client is not a postinstall hook.
+#
+# Both additionally exclude the Authorization-header shape outright.
+
+rules:
+  - id: bb-js-credential-file-exfiltration
+    mode: taint
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      weight: 45
+      mitre: ["T1552", "T1041"]
+      category: security
+      subcategory: exfiltration
+    message: >-
+      A credential file (SSH key, cloud credentials, npm token) is read and
+      its contents flow into an outbound network call.
+    options:
+      taint_assume_safe_booleans: true
+      taint_assume_safe_numbers: true
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: require("fs").readFileSync($P, ...)
+              - pattern: require("fs").readFile($P, ...)
+              - pattern: require("fs/promises").readFile($P, ...)
+              - pattern: $FS.readFileSync($P, ...)
+              - pattern: $FS.readFile($P, ...)
+          - metavariable-regex:
+              metavariable: $P
+              regex: (?i).*(\.ssh|\.aws|\.npmrc|\.netrc|id_rsa|id_ed25519|credentials|wallet|keychain|Login Data|cookies).*
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: fetch($URL, ...)
+              - pattern: require("https").request(...)
+              - pattern: require("http").request(...)
+              - pattern: $H.request($OPTS, ...)
+              - pattern: $AXIOS.post(...)
+              - pattern: $AXIOS.put(...)
+              - pattern: $REQ.end($DATA)
+              - pattern: $REQ.write($DATA)
+              - pattern: $SOCK.sendall($DATA)
+              - pattern: $DNS.resolve($HOST, ...)
+              - pattern: $DNS.lookup($HOST, ...)
+    pattern-sanitizers:
+      - pattern: JSON.parse(...)
+
+  - id: bb-js-env-exfiltration
+    mode: taint
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      weight: 30
+      mitre: ["T1552", "T1041"]
+      category: security
+      subcategory: exfiltration
+      install_context: true
+    message: >-
+      Install-time code sends environment variables over the network. At
+      install time the environment holds CI secrets and registry tokens.
+    options:
+      taint_assume_safe_booleans: true
+      taint_assume_safe_numbers: true
+    pattern-sources:
+      - pattern: process.env
+      - pattern: process.env.$ANY
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: fetch($URL, ...)
+              - pattern: require("https").request(...)
+              - pattern: require("http").request(...)
+              - pattern: $H.request($OPTS, ...)
+              - pattern: $AXIOS.post(...)
+              - pattern: $REQ.end($DATA)
+              - pattern: $REQ.write($DATA)
+          # Presenting a token to the service it belongs to is not theft.
+          - pattern-not-regex: (?i)authorization|bearer|x-api-key|apikey
+    pattern-sanitizers:
+      - pattern: JSON.parse(...)
+
+  - id: bb-py-credential-file-exfiltration
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    metadata:
+      weight: 45
+      mitre: ["T1552", "T1041"]
+      category: security
+      subcategory: exfiltration
+    message: >-
+      A credential file is read and its contents flow into an outbound call.
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: open($P, ...)
+              - pattern: $PATH.read_text(...)
+          - metavariable-regex:
+              metavariable: $P
+              regex: (?i).*(\.ssh|\.aws|id_rsa|id_ed25519|credentials|\.pypirc|wallet|keyring|\.netrc).*
+    pattern-sinks:
+      - pattern-either:
+          - pattern: requests.post(...)
+          - pattern: requests.put(...)
+          - pattern: requests.get(...)
+          - pattern: urllib.request.urlopen(...)
+          - pattern: httpx.post(...)
+          - pattern: $S.sendall(...)
+
+  - id: bb-py-env-exfiltration
+    mode: taint
+    languages: [python]
+    severity: WARNING
+    metadata:
+      weight: 30
+      mitre: ["T1552", "T1041"]
+      category: security
+      subcategory: exfiltration
+      install_context: true
+    message: >-
+      Install-time code sends the environment over the network.
+    pattern-sources:
+      - pattern: os.environ
+      - pattern: os.environ[...]
+      - pattern: os.getenv(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: requests.post(...)
+              - pattern: requests.put(...)
+              - pattern: urllib.request.urlopen(...)
+              - pattern: httpx.post(...)
+              - pattern: $S.sendall(...)
+          - pattern-not-regex: (?i)authorization|bearer|x-api-key|apikey
+
+  - id: bb-js-recon-sensitive-paths
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      weight: 20
+      mitre: ["T1083", "T1552"]
+      category: security
+      subcategory: discovery
+    message: >-
+      Reads a well-known credential or wallet location. Benign packages rarely
+      need these paths.
+    patterns:
+      - pattern-either:
+          - pattern: $F($PATH, ...)
+      - metavariable-regex:
+          metavariable: $PATH
+          regex: (?i).*(\.ssh/id_|\.aws/credentials|\.npmrc|\.netrc|Local Storage|Login Data|wallet\.dat|exodus|metamask|\.config/solana).*

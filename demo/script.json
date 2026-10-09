@@ -1,0 +1,56 @@
+{
+  "voice": "tpS5zOAgWUiQMhzYbG2h",
+  "voiceNote": "Sapphire - Well-Mannered, Smooth & Clean (young female, British). Swap for zmcVlqmyk3Jpn5AVYcAL for the other Sapphire.",
+  "segments": [
+    {
+      "id": "01-hook",
+      "action": "header",
+      "text": "Last year, attackers put malware into npm and PyPI thousands of times. They didn't break in. They published. A stolen token, a new version of a package you already trust, and it runs on every laptop and every CI runner that installs it."
+    },
+    {
+      "id": "02-scout",
+      "action": "header",
+      "text": "This is Scout. At US airports, the Beagle Brigade sniffs luggage for what shouldn't cross the border. Scout does the same job for package registries."
+    },
+    {
+      "id": "03-pipeline",
+      "action": "feed",
+      "text": "Every new release on npm and PyPI gets pulled within seconds of publication, unpacked in a sandbox, and taken apart. Nothing is ever executed. Semgrep runs dataflow rules over the source: does a credential file reach a network call, does a fetched payload reach eval, and does any of it run during install?"
+    },
+    {
+      "id": "04-combinations",
+      "action": "feed",
+      "text": "Single rules are weak evidence. Thousands of honest packages compile native code at install time. What almost never happens in an honest package is install-time execution combined with credential theft. Combinations convict, not individual hits."
+    },
+    {
+      "id": "05-bark",
+      "action": "bark",
+      "text": "Here's a bark. A package named e-x-p-r-e-s, one character from express, scoring one hundred."
+    },
+    {
+      "id": "06-evidence",
+      "action": "evidence",
+      "text": "The evidence is the actual code. A postinstall hook that npm runs automatically. A private SSH key read straight out of the home directory. And an HTTPS POST carrying that key off the machine. Three lines, one file, no payload to download, nothing to notice."
+    },
+    {
+      "id": "07-guild",
+      "action": "agent",
+      "text": "The detection wakes an agent running on Guild. It reads the evidence and writes the judgement an on-call engineer actually needs: what the code does in the order it does it, which credentials to rotate, and how confident it is."
+    },
+    {
+      "id": "08-clickhouse",
+      "action": "clickhouse",
+      "text": "All of it lands in ClickHouse, in Tokyo. Alongside the scan results we replicated millions of real npm registry change events, and we aggregate the whole table in well under a second."
+    },
+    {
+      "id": "09-falsepositives",
+      "action": "clickhouse",
+      "text": "The hard part was not catching malware. It was not crying wolf. Our first rules flagged almost every well-behaved API client in the registry, because reading a token from the environment and sending it in an authorization header looks exactly like theft until you check where it's going. So we split the rules by what actually leaks. Real packages dropped to clean. The malware stayed at one hundred."
+    },
+    {
+      "id": "10-close",
+      "action": "close",
+      "text": "Beagle Brigade. Static analysis, real-time analytics, and an agent that acts on what it finds. Good boy, Scout."
+    }
+  ]
+}

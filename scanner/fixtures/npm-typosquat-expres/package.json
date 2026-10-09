@@ -1,0 +1,9 @@
+{
+  "name": "expres",
+  "version": "4.18.2",
+  "description": "Beagle Brigade detection fixture. Inert, never published.",
+  "private": true,
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js"
+  }
+}

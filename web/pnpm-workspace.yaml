@@ -1,0 +1,5 @@
+# sharp is next's optional image-optimisation binary. The dashboard uses plain
+# <img> tags, never next/image, so there is nothing to build and nothing to
+# gain from running its install script.
+allowBuilds:
+  sharp: false

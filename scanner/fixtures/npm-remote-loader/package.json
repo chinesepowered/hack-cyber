@@ -1,0 +1,9 @@
+{
+  "name": "npm-remote-loader",
+  "version": "2.1.4",
+  "description": "Beagle Brigade detection fixture. Inert, never published.",
+  "private": true,
+  "scripts": {
+    "preinstall": "node install.js"
+  }
+}

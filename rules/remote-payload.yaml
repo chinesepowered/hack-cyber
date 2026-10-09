@@ -1,0 +1,140 @@
+# Download-and-run and obfuscated loaders. The dataflow variants matter most:
+# a fetched response body reaching eval is the classic second-stage loader.
+#
+# Two lessons are baked into the patterns here, both learned against real
+# registry traffic:
+#
+#   1. `$CP.exec(...)` is NOT a safe way to spell "child_process.exec". It
+#      also matches `RegExp.prototype.exec`, so a perfectly ordinary
+#      `/^Bearer\s+(.+)$/i.exec(header)` in an auth helper was being reported
+#      as a second-stage loader. The receiver is now constrained by name.
+#   2. `$RES.data` and `$RES.text()` as taint sources match *any* object with
+#      a `.data` property. Dropped: taint already flows from the fetch call
+#      itself through the response object, which is both narrower and more
+#      accurate.
+
+rules:
+  - id: bb-js-remote-payload-execution
+    mode: taint
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      weight: 45
+      mitre: ["T1105", "T1059"]
+      category: security
+      subcategory: execution
+    message: >-
+      Data fetched from the network reaches a code-execution sink. This is a
+      second-stage loader.
+    pattern-sources:
+      - pattern: fetch(...)
+      - pattern: require("https").get(...)
+      - pattern: require("http").get(...)
+      - pattern: require("node-fetch")(...)
+      - pattern: axios.get(...)
+      - pattern: axios(...)
+    pattern-sinks:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: new Function(...)
+          - pattern: require("vm").runInNewContext(...)
+          - pattern: require("vm").runInThisContext(...)
+          - pattern: require("child_process").exec(...)
+          - pattern: require("child_process").execSync(...)
+          - patterns:
+              - pattern-either:
+                  - pattern: $CP.exec(...)
+                  - pattern: $CP.execSync(...)
+              - metavariable-regex:
+                  metavariable: $CP
+                  regex: ^(cp|childProcess|child_process|proc|shell|spawnTool)$
+
+  - id: bb-py-remote-payload-execution
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    metadata:
+      weight: 45
+      mitre: ["T1105", "T1059"]
+      category: security
+      subcategory: execution
+    message: >-
+      Network response data reaches exec or eval.
+    pattern-sources:
+      - pattern: requests.get(...).text
+      - pattern: requests.get(...).content
+      - pattern: urllib.request.urlopen(...).read()
+      - pattern: httpx.get(...).text
+    pattern-sinks:
+      - pattern-either:
+          - pattern: exec(...)
+          - pattern: eval(...)
+
+  - id: bb-js-decoded-blob-execution
+    mode: taint
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      weight: 40
+      mitre: ["T1140", "T1059"]
+      category: security
+      subcategory: obfuscation
+    message: >-
+      Base64 or hex decoded data is executed. Standard payload-hiding pattern.
+    pattern-sources:
+      - pattern: Buffer.from($D, "base64")
+      - pattern: Buffer.from($D, "hex")
+      - pattern: atob(...)
+    pattern-sinks:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: new Function(...)
+          - pattern: require("vm").runInNewContext(...)
+          - pattern: require("child_process").exec(...)
+          - patterns:
+              - pattern-either:
+                  - pattern: $CP.exec(...)
+                  - pattern: $CP.execSync(...)
+              - metavariable-regex:
+                  metavariable: $CP
+                  regex: ^(cp|childProcess|child_process|proc|shell|spawnTool)$
+
+  - id: bb-py-decoded-blob-execution
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    metadata:
+      weight: 40
+      mitre: ["T1140", "T1059"]
+      category: security
+      subcategory: obfuscation
+    message: >-
+      Base64 or zlib decoded data is executed.
+    pattern-sources:
+      - pattern: base64.b64decode(...)
+      - pattern: base64.b85decode(...)
+      - pattern: zlib.decompress(...)
+      - pattern: codecs.decode(...)
+    pattern-sinks:
+      - pattern-either:
+          - pattern: exec(...)
+          - pattern: eval(...)
+
+  - id: bb-js-reverse-shell-shape
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      weight: 50
+      mitre: ["T1059", "T1571"]
+      category: security
+      subcategory: command-and-control
+    message: >-
+      Socket connected to a remote host with process stdio attached. This is a
+      reverse shell.
+    pattern-either:
+      - pattern: |
+          $S.connect($PORT, $HOST, ...)
+          ...
+          $S.pipe($PROC.stdin)
+      - pattern: |
+          $PROC.stdout.pipe($S)

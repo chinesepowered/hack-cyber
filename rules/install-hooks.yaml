@@ -1,0 +1,112 @@
+# Code that runs at install time.
+#
+# On its own this is common and legitimate: thousands of honest packages
+# compile native addons during install. So these rules carry deliberately
+# LOW weights. They are context, not evidence. The score comes from the
+# combination bonuses in score.py, where install-time execution plus
+# credential access or a remote payload is what actually convicts.
+#
+# Two guards keep this quiet:
+#   1. metadata.install_context: true means the scanner drops the finding
+#      unless the file genuinely runs at install time (resolved from
+#      package.json scripts or setup.py).
+#   2. pattern-not-regex exempts the standard native build toolchain.
+#      `node-gyp rebuild` in a postinstall is the most normal thing in npm.
+
+rules:
+  - id: bb-js-install-hook-process-spawn
+    languages: [javascript, typescript]
+    severity: INFO
+    metadata:
+      weight: 12
+      mitre: ["T1059"]
+      category: security
+      subcategory: execution
+      install_context: true
+    message: >-
+      Install-time script spawns a process.
+    patterns:
+      - pattern-either:
+          - pattern: require("child_process").exec(...)
+          - pattern: require("child_process").execSync(...)
+          - pattern: require("child_process").spawn(...)
+          - pattern: require("child_process").spawnSync(...)
+          - pattern: require("child_process").execFile(...)
+          # Constrain the receiver by name: a bare $CP.exec(...) also matches
+          # RegExp.prototype.exec, which is everywhere in ordinary code.
+          - patterns:
+              - pattern-either:
+                  - pattern: $CP.exec(...)
+                  - pattern: $CP.execSync(...)
+                  - pattern: $CP.spawn(...)
+                  - pattern: $CP.spawnSync(...)
+                  - pattern: $CP.execFile(...)
+              - metavariable-regex:
+                  metavariable: $CP
+                  regex: ^(cp|childProcess|child_process|proc|shell|spawnTool)$
+      # Standard native build toolchain: expected at install time.
+      - pattern-not-regex: (node-gyp|node-pre-gyp|prebuild-install|prebuildify|cmake-js|tsc|webpack|rollup)
+
+  - id: bb-js-install-hook-network
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      weight: 15
+      mitre: ["T1105"]
+      category: security
+      subcategory: command-and-control
+      install_context: true
+    message: >-
+      Install-time script makes an outbound network call.
+    pattern-either:
+      - pattern: fetch(...)
+      - pattern: require("https").get(...)
+      - pattern: require("https").request(...)
+      - pattern: require("http").get(...)
+      - pattern: require("http").request(...)
+      - pattern: require("node-fetch")(...)
+      - pattern: axios.get(...)
+      - pattern: axios.post(...)
+      - pattern: axios(...)
+
+  - id: bb-py-setup-hook-execution
+    languages: [python]
+    severity: INFO
+    metadata:
+      weight: 12
+      mitre: ["T1059"]
+      category: security
+      subcategory: execution
+      install_context: true
+    message: >-
+      setup.py or a build hook runs a subprocess or network call at install time.
+    pattern-either:
+      - pattern: subprocess.run(...)
+      - pattern: subprocess.Popen(...)
+      - pattern: subprocess.check_output(...)
+      - pattern: os.system(...)
+      - pattern: os.popen(...)
+      - pattern: urllib.request.urlopen(...)
+      - pattern: requests.get(...)
+      - pattern: requests.post(...)
+
+  - id: bb-py-setup-custom-command-class
+    languages: [python]
+    severity: INFO
+    metadata:
+      weight: 10
+      mitre: ["T1059"]
+      category: security
+      subcategory: execution
+      install_context: true
+    message: >-
+      setup.py overrides an install or build command class. This is the usual
+      way to get arbitrary code to run during pip install.
+    pattern-either:
+      - pattern: |
+          class $C($INSTALL):
+            ...
+            def run($SELF, ...):
+              ...
+      - pattern: |
+          cmdclass={..., $K: $V, ...}
